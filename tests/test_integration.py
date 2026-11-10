@@ -468,6 +468,10 @@ def test_source_release_levels(tmp_path, release):
     assert element(root, "demo.Point").get("kind") == "record"
 
 
+def test_release_may_be_an_integer(tmp_path):
+    build(project(tmp_path, extra="java_release = 17\n"), tmp_path / "out")
+
+
 def test_text_builder(site, tmp_path):
     docs, _ = site
     build(docs, tmp_path / "text", "-b", "text")
