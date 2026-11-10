@@ -822,6 +822,33 @@ def test_line_breaks_preserve_inline_formatting_and_preformatted_text():
     assert next(result.findall(nodes.literal_block)).astext() == "Code\ncontinued"
 
 
+def test_preformatted_text_without_lang_is_highlighted_leniently(tmp_path):
+    source = tmp_path / "src/p/Pre.java"
+    source.parent.mkdir(parents=True)
+    source.write_text(
+        "package p;\n/** Results.\n * <pre>a # b</pre>\n"
+        ' * <pre lang="text">c</pre>\n */\npublic class Pre {}\n'
+    )
+    root = extract([tmp_path / "src"], [], tmp_path / "cache").root
+    from docutils import nodes
+
+    from sphinx_java_autodoc.render import comment
+
+    body = element(root, "p.Pre").find("doc/part[@kind='body']")
+    lenient, strict = nodes.container("", *comment(body, None)).findall(
+        nodes.literal_block
+    )
+    assert (lenient["language"], lenient.get("force")) == ("java", True)
+    assert (strict["language"], strict.get("force")) == ("text", None)
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "conf.py").write_text(
+        f"extensions = ['sphinx_java_autodoc']\njava_sources = [{str(tmp_path / 'src')!r}]\n"
+    )
+    (docs / "index.rst").write_text("Pre\n===\n\n.. java:autoclass:: p.Pre\n")
+    build(docs, tmp_path / "html")
+
+
 def test_paragraph_boundaries_and_spaces_between_tokens():
     from docutils import nodes
 

@@ -293,6 +293,9 @@ def comment(part: ET.Element, location, quiet: bool = False) -> list[nodes.Node]
                         node = nodes.literal_block(
                             "", "", language=attrs.get("lang", "java")
                         )
+                        if "lang" not in attrs:
+                            # Javadoc never highlights <pre>, which often holds no Java.
+                            node["force"] = True
                     else:
                         node = nodes.block_quote()
                     if name == "li" and not isinstance(

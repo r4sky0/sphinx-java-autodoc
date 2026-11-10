@@ -17,6 +17,10 @@ Tags and HTML
 - HTML: paragraphs, nested lists, tables, ``<pre>``, emphasis, strong text,
   ``<br>`` and absolute HTTP(S) or mailto links.
 
+``<pre>`` is highlighted as Java where its text is Java, and shown without a warning
+where it is not, such as a table of results. With a ``lang`` attribute, as in
+snippets, Sphinx warns when the text does not match the language.
+
 ``@author``, ``@version`` and the ``@serial`` tags are omitted silently, as in the
 standard doclet's default output. Other custom tags warn.
 
