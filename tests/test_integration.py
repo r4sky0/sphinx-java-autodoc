@@ -391,6 +391,13 @@ public class Bad {
     assert output.read_text() == "previous good model"
 
 
+def test_jvm_option_notices_are_not_diagnostics(tmp_path, monkeypatch):
+    source = tmp_path / "Clean.java"
+    source.write_text("/** Clean. */\npublic class Clean {}\n")
+    monkeypatch.setenv("JAVA_TOOL_OPTIONS", "-Dsphinx.test=1")
+    assert not extract([source], [], tmp_path / "cache").root.findall("diagnostic")
+
+
 def test_markdown_diagnostic(tmp_path):
     source = tmp_path / "Markdown.java"
     source.write_text("/// A **Markdown** comment.\npublic class Markdown {}\n")

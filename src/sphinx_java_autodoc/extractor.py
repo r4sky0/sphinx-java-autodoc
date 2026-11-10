@@ -20,6 +20,8 @@ from .model import Model, read_model
 VERSION = "0.6.0"  # x-release-please-version
 DOCLET = Path(__file__).parent / "java" / "SphinxDoclet.java"
 PACKAGE = re.compile(r"[^\W\d]\w*(?:\.[^\W\d]\w*)*")
+# The JVM announces options from variables such as JAVA_TOOL_OPTIONS on stderr.
+JVM_NOTICE = re.compile(r"(NOTE: )?Picked up \w+:")
 
 
 def run(arguments: list[str], *, cwd: Path | None = None) -> str:
@@ -249,7 +251,12 @@ def extract(
             ),
             encoding="utf-8",
         )
-        diagnostics = run([tools["javadoc"], "@" + str(argfile)], cwd=work)
+        printed = run([tools["javadoc"], "@" + str(argfile)], cwd=work)
+        diagnostics = "".join(
+            line
+            for line in printed.splitlines(keepends=True)
+            if not JVM_NOTICE.match(line)
+        )
         root = read_model(output)
         root.set("extractor", VERSION)
         if diagnostics.strip():
