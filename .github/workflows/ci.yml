@@ -59,17 +59,29 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: uv run --locked pytest -q
 
-  test-sphinx-8:
-    name: Tests (Sphinx 8.2)
+  test-sphinx:
+    name: Tests (Sphinx ${{ matrix.sphinx }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # The oldest supported Sphinx (add_linkcode_domain is new in 8.2) and 9.0;
+        # the test job covers the locked 9.1.
+        sphinx: ["8.2.3", "9.0.4"]
+    env:
+      SPHINX: ${{ matrix.sphinx }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup
-      # The oldest supported Sphinx; add_linkcode_domain is new in 8.2.
-      - run: uv run --locked --with "sphinx==8.2.3" pytest -q
+      - name: Check the Sphinx version
+        run: >-
+          uv run --locked --with "sphinx==$SPHINX" python -c
+          'import sphinx, sys; assert sphinx.__version__ == sys.argv[1], sphinx.__version__'
+          "$SPHINX"
+      - run: uv run --locked --with "sphinx==$SPHINX" pytest -q
 
   package:
     name: Package
