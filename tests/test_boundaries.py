@@ -92,6 +92,20 @@ def test_model_rejects_missing_or_empty_signature(tmp_path, tag):
             read_model(path)
 
 
+def test_model_accepts_only_known_diagnostic_kinds(tmp_path):
+    root = model("A")
+    for kind in ("extract", "inherit"):
+        ET.SubElement(root, "diagnostic", kind=kind).text = "A: text"
+    ET.SubElement(root, "diagnostic").text = "A: text"
+    path = tmp_path / "api.xml"
+    path.write_bytes(ET.tostring(root))
+    read_model(path)
+    ET.SubElement(root, "diagnostic", kind="html").text = "A: text"
+    path.write_bytes(ET.tostring(root))
+    with pytest.raises(ExtensionError, match="invalid diagnostic kind"):
+        read_model(path)
+
+
 def test_model_finds_symbols_and_labels():
     root = model("A", "B")
     root.find("type").set("visibility", "protected")

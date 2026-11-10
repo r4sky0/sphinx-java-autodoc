@@ -24,6 +24,10 @@ this site builds with ``-W``, so a real warning would fail it.
    * - ``{@link}`` to a symbol the compiler can't find
      - Unresolved Javadoc reference
      - ``java.extract``
+   * - An override without its own text, such as ``toString``, whose ancestor has
+       no source documentation
+     - Cannot inherit
+     - ``java.inherit``
    * - ``{@inheritDoc}`` without ancestor source
      - Cannot resolve inheritDoc
      - ``java.extract``

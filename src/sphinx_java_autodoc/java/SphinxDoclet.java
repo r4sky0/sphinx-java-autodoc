@@ -46,7 +46,8 @@ public final class SphinxDoclet implements Doclet {
   private Types types;
   private Path output;
   private List<String> excluded = List.of();
-  private final Set<String> warnings = new TreeSet<>();
+  // Diagnostic text and its kind: "inherit" for an omitted part no ancestor documents.
+  private final Map<String, String> warnings = new TreeMap<>();
   private final Map<Element, Map<String, Part>> comments = new HashMap<>();
 
   /** Documentation content together with the declaration whose comment supplied it. */
@@ -214,10 +215,17 @@ public final class SphinxDoclet implements Doclet {
         if (env.getIncludedElements().stream()
             .noneMatch(
                 e -> excluded(pkg, elements.getPackageOf(e).getQualifiedName().toString()))) {
-          warnings.add("Excluded package %s matches no source package.".formatted(pkg));
+          warnings.put("Excluded package %s matches no source package.".formatted(pkg), "extract");
         }
       }
-      warnings.forEach(warning -> root.addText("diagnostic", warning));
+      warnings.forEach(
+          (warning, kind) -> {
+            var diagnostic = root.add("diagnostic");
+            if (!kind.equals("extract")) {
+              diagnostic.set("kind", kind);
+            }
+            diagnostic.node().setTextContent(Xml.safe(warning));
+          });
       var transformer = TransformerFactory.newInstance().newTransformer();
       transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
       transformer.setOutputProperty(OutputKeys.INDENT, "yes");
@@ -263,7 +271,12 @@ public final class SphinxDoclet implements Doclet {
 
   /** Records a diagnostic; {@code template} is a {@link String#format} pattern. */
   private void warn(Element owner, String template, Object... args) {
-    warnings.add(id(owner) + ": " + (args.length == 0 ? template : template.formatted(args)));
+    warn("extract", owner, template, args);
+  }
+
+  private void warn(String kind, Element owner, String template, Object... args) {
+    warnings.putIfAbsent(
+        id(owner) + ": " + (args.length == 0 ? template : template.formatted(args)), kind);
   }
 
   // Declarations and signatures
@@ -815,6 +828,7 @@ public final class SphinxDoclet implements Doclet {
     if (part == null) {
       if (method != null) {
         warn(
+            "inherit",
             e,
             "Cannot inherit %s; provide the overridden method's source documentation or"
                 + " document this part explicitly.",

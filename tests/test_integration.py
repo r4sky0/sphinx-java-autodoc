@@ -523,6 +523,39 @@ def test_binary_ancestor_docs_warn_and_malformed_comments(tmp_path):
     assert "Malformed Javadoc" in messages
 
 
+def test_implicit_inheritance_warnings_have_their_own_category(tmp_path):
+    source = tmp_path / "src/p/Plain.java"
+    source.parent.mkdir(parents=True)
+    source.write_text("""package p;
+/** Plain. */
+public class Plain {
+    /** Text. */
+    @Override public String toString() { return ""; }
+    /** {@inheritDoc} */
+    @Override public int hashCode() { return 0; }
+}
+""")
+    root = extract([tmp_path / "src"], [], tmp_path / "cache").root
+    assert [(d.text.split(";")[0], d.get("kind")) for d in root.iter("diagnostic")] == [
+        ("p.Plain#hashCode(): Cannot inherit return", "inherit"),
+        # An explicit inheritDoc leaves a marker in the output, so it stays extract.
+        ("p.Plain#hashCode(): Cannot resolve inheritDoc for body", None),
+        ("p.Plain#toString(): Cannot inherit return", "inherit"),
+    ]
+    source.write_text(source.read_text().replace("{@inheritDoc}", "Hashes."))
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    conf = (
+        "extensions = ['sphinx_java_autodoc']\n"
+        f"java_sources = [{str(tmp_path / 'src')!r}]\n"
+    )
+    (docs / "conf.py").write_text(conf)
+    (docs / "index.rst").write_text("Plain\n=====\n\n.. java:autoclass:: p.Plain\n")
+    assert "[java.inherit]" in build(docs, tmp_path / "strict", success=False)
+    (docs / "conf.py").write_text(conf + "suppress_warnings = ['java.inherit']\n")
+    build(docs, tmp_path / "html")
+
+
 def test_concurrent_cache_publication(tmp_path):
     from concurrent.futures import ThreadPoolExecutor
 
