@@ -379,7 +379,11 @@ def summary(element: ET.Element, location) -> list[nodes.Node]:
     """Returns the first sentence of the description as inline nodes."""
     body = element.find("doc/part[@kind='body']")
     content = comment(body, location, quiet=True) if body is not None else []
-    if not content or not isinstance(content[0], nodes.paragraph):
+    first = content[0] if content else None
+    if isinstance(first, nodes.line_block):
+        # <br> turns the first paragraph into lines; the summary comes from the first.
+        first = first[0]
+    if not isinstance(first, (nodes.paragraph, nodes.line)):
         return []
     done = False
 
@@ -398,7 +402,7 @@ def summary(element: ET.Element, location) -> list[nodes.Node]:
                 break
         return copy
 
-    sentence = truncate(content[0])
+    sentence = truncate(first)
     # The full description reports unresolved links; the summary repeats them quietly.
     for reference in sentence.findall(addnodes.pending_xref):
         reference["java:quiet"] = True
