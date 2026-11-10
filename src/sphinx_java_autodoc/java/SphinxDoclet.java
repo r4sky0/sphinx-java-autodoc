@@ -968,6 +968,16 @@ public final class SphinxDoclet implements Doclet {
         case StartElementTree start -> startElement(parent, start);
         case EndElementTree end -> parent.add("end").set("name", end.getName().toString());
         case InheritDocTree inherit -> inheritDoc(parent, owner, key, inherit, chain);
+        // The standard doclet shows an index term and a summary as text, and a system
+        // property as code. A quoted index term, which may contain spaces, loses its quotes.
+        case IndexTree index -> {
+          String term = index.getSearchTerm().toString();
+          parent.addText(
+              "text", term.matches("\".*\"") ? term.substring(1, term.length() - 1) : term);
+        }
+        case SummaryTree summary -> emit(parent, owner, key, summary.getSummary(), chain);
+        case SystemPropertyTree property ->
+            parent.addText("code", property.getPropertyName().toString());
         case ReturnTree ret -> {
           parent.addText("text", "Returns ");
           emit(parent, owner, "return", ret.getDescription(), chain);

@@ -13,9 +13,15 @@ Tags and HTML
 - JDK notes: ``@apiNote``, ``@implSpec`` and ``@implNote``, with the standard
   doclet's headings. They are not inherited.
 - Inline tags: ``code``, ``literal``, ``link``, ``linkplain``, ``value``,
-  ``inheritDoc``, ``return`` and plain inline ``snippet``.
-- HTML: paragraphs, nested lists, tables, ``<pre>``, emphasis, strong text,
-  ``<br>`` and absolute HTTP(S) or mailto links.
+  ``inheritDoc``, ``return`` and plain inline ``snippet``. ``{@summary}`` shows its
+  text, ``{@index}`` its term and ``{@systemProperty}`` the property name as code,
+  as in the standard doclet; there is no search index entry.
+- HTML: paragraphs, nested lists, definition lists (``<dl>``, ``<dt>``, ``<dd>``),
+  tables, ``<pre>``, headings ``<h1>`` to ``<h6>`` as rubrics, ``<br>`` and absolute
+  HTTP(S) or mailto links.
+- Inline HTML: emphasis (``<i>``, ``<em>``, ``<var>``, ``<cite>``, ``<dfn>``), strong
+  text (``<b>``, ``<strong>``), code (``<code>``, ``<tt>``, ``<kbd>``, ``<samp>``),
+  ``<sup>``, ``<sub>`` and ``<small>``, which shows as plain text.
 
 ``<pre>`` is highlighted as Java where its text is Java, and shown without a warning
 where it is not, such as a table of results. With a ``lang`` attribute, as in

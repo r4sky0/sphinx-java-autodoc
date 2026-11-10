@@ -567,6 +567,68 @@ def test_safe_html_and_native_lists():
     assert "<script>alert(1)</script>" in result.astext()
 
 
+def test_more_javadoc_html_and_inline_tags_render_natively(tmp_path, monkeypatch):
+    from docutils import nodes
+
+    from sphinx_java_autodoc import render
+
+    source = tmp_path / "src/p/Html.java"
+    source.parent.mkdir(parents=True)
+    source.write_text("""package p;
+/**
+ * {@summary Short summary.} Range 2<sup>31</sup> and x<sub>i</sub>, <tt>tt</tt>
+ * <kbd>Ctrl</kbd> <samp>out</samp>, <var>n</var> <cite>Book</cite> <dfn>term</dfn>
+ * <small>fine print</small>.
+ * <h2>Usage</h2>
+ * After the heading, {@index "search term" a description} and
+ * {@systemProperty user.home}.
+ * <dl><dt>Key</dt><dd>Value text.</dd><dt>Other<dd>More.</dl>
+ */
+public class Html {}
+""")
+    root = extract([tmp_path / "src"], [], tmp_path / "cache").root
+    assert not root.findall("diagnostic")
+    warnings = []
+    monkeypatch.setattr(
+        render.LOGGER, "warning", lambda message, **_: warnings.append(message)
+    )
+    body = element(root, "p.Html").find("doc/part[@kind='body']")
+    result = nodes.container("", *render.comment(body, None))
+    assert warnings == []
+
+    def texts(kind):
+        return [n.astext() for n in result.findall(kind)]
+
+    assert texts(nodes.superscript) == ["31"]
+    assert texts(nodes.subscript) == ["i"]
+    assert texts(nodes.literal) == ["tt", "Ctrl", "out", "user.home"]
+    assert texts(nodes.emphasis) == ["n", "Book", "term"]
+    assert texts(nodes.rubric) == ["Usage"]
+    assert texts(nodes.term) == ["Key", "Other"]
+    assert texts(nodes.definition) == ["Value text.", "More."]
+    assert [type(n) for n in result.children] == [
+        nodes.paragraph,
+        nodes.rubric,
+        nodes.paragraph,
+        nodes.definition_list,
+    ]
+    assert result.children[0].astext().startswith("Short summary. Range 2")
+    assert "fine print." in result.children[0].astext()
+    assert result.children[2].astext().strip() == (
+        "After the heading, search term and user.home."
+    )
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "conf.py").write_text(
+        "extensions = ['sphinx_java_autodoc']\n"
+        f"java_sources = [{str(tmp_path / 'src')!r}]\n"
+    )
+    (docs / "index.rst").write_text("Html\n====\n\n.. java:autoclass:: p.Html\n")
+    build(docs, tmp_path / "html")
+    build(docs, tmp_path / "text", "-b", "text")
+    assert "<sup>31</sup>" in (tmp_path / "html/index.html").read_text()
+
+
 def test_application_code_never_executes(tmp_path):
     source = tmp_path / "Dangerous.java"
     source.write_text("""/** A class whose initialization must never run. */
