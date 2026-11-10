@@ -128,8 +128,11 @@ Roles
 
 ``java:obj`` accepts any kind. Targets are fully qualified: there are no imports
 or short-name guessing. Parameters are erased, fully qualified types, with ``[]``
-for varargs; constructors are ``<init>``. A method without a parameter list
-resolves only when it has one overload; otherwise it warns. References inside Java
+for varargs; constructors are ``<init>``. Roles, ``java:auto*`` arguments,
+``java:autosummary`` lines and ``:members:``/``:exclude-members:`` entries all
+ignore spaces and accept ``...`` for ``[]``, so ``find(java.lang.String, int)``
+works too. A method without a parameter list resolves only when it has one
+overload; otherwise it warns. References inside Java
 comments are resolved by the compiler as usual.
 
 .. _source-links:

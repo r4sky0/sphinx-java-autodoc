@@ -458,6 +458,22 @@ def test_visibility_selection_and_duplicate_excerpt(tmp_path):
     assert "Combines array" not in html
 
 
+def test_member_spellings_are_normalised_in_every_directive(tmp_path):
+    docs = project(tmp_path)
+    with (docs / "index.rst").open("a") as stream:
+        stream.write(
+            "\n.. java:autoclass:: demo.Widget\n"
+            "   :members: combine(int[][], java.lang.String...); convert(int)\n"
+            "   :exclude-members: convert( int )\n   :no-index:\n"
+            "\n.. java:autosummary::\n\n"
+            "   demo.Widget#combine(int[][], java.lang.String...)\n"
+        )
+    build(docs, tmp_path / "out")
+    html = (tmp_path / "out/index.html").read_text()
+    assert "Combines array" in html
+    assert "Converts a number to text" not in html
+
+
 def test_read_model_and_safe_generation(model, tmp_path):
     root, _, _ = model
     out = tmp_path / "api"
