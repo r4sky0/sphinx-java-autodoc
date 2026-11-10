@@ -615,7 +615,10 @@ public final class SphinxDoclet implements Doclet {
             result.put(custom.getTagName() + ":" + note++, new Part(e, "", custom.getContent()));
         default -> {
           if (!OMITTED.contains(tag.getKind())) {
-            warn(e, "Unsupported block tag %s; retain it in handwritten guides.", tag.getKind());
+            // The tag as written, such as @todo, rather than its kind UNKNOWN_BLOCK_TAG.
+            Object name =
+                tag instanceof BlockTagTree block ? "@" + block.getTagName() : tag.getKind();
+            warn(e, "Unsupported block tag %s; retain it in handwritten guides.", name);
           }
         }
       }
@@ -651,6 +654,13 @@ public final class SphinxDoclet implements Doclet {
 
   private void putThrows(Map<String, Part> result, Element e, ThrowsTree thrown) {
     var target = resolve(e, thrown.getExceptionName());
+    if (target == null) {
+      // As for {@link}; the part keeps the name as written.
+      warn(
+          e,
+          "Unresolved Javadoc reference %s; check spelling, source paths and classpath.",
+          thrown.getExceptionName());
+    }
     String name = target == null ? thrown.getExceptionName().toString() : id(target);
     // Inheritance must copy every description of the same exception.
     result.merge(

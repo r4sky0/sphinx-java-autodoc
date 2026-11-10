@@ -404,8 +404,28 @@ def test_unknown_block_tags_still_warn(tmp_path):
         "/** Text.\n * @todo finish\n * @author A\n */\npublic class Todo {}\n"
     )
     (diagnostic,) = extract([source], [], tmp_path / "cache").root.findall("diagnostic")
-    assert "Unsupported block tag UNKNOWN_BLOCK_TAG" in diagnostic.text
-    assert "AUTHOR" not in diagnostic.text
+    assert "Unsupported block tag @todo;" in diagnostic.text
+    assert "author" not in diagnostic.text.lower()
+
+
+def test_unresolved_throws_names_warn_like_links(tmp_path):
+    source = tmp_path / "Thrower.java"
+    source.write_text("""public class Thrower {
+    /** Fails.
+     * @throws MissingEx when it fails
+     * @exception IllegalStateException when it is late
+     */
+    public void run() {}
+}
+""")
+    root = extract([source], [], tmp_path / "cache").root
+    (diagnostic,) = root.findall("diagnostic")
+    assert diagnostic.text == (
+        "Thrower#run(): Unresolved Javadoc reference MissingEx; check spelling,"
+        " source paths and classpath."
+    )
+    labels = [p.get("label") for p in root.iter("part") if p.get("kind") == "throws"]
+    assert labels == ["MissingEx", "IllegalStateException"]
 
 
 def test_unresolved_and_ambiguous_sphinx_roles(site, tmp_path):
