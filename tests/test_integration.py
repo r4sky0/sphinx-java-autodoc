@@ -734,6 +734,31 @@ def test_manual_external_role_preserves_varargs(tmp_path):
     )
 
 
+def test_manual_role_uses_signature_metadata(tmp_path):
+    source = tmp_path / "src/p/Uses.java"
+    source.parent.mkdir(parents=True)
+    source.write_text(
+        "package p;\n/** Uses lists. */\npublic class Uses {\n"
+        "    /** Gets. @return values */\n"
+        "    public java.util.List<String> get() { return null; }\n}\n"
+    )
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "conf.py").write_text(
+        "extensions=['sphinx_java_autodoc']\n"
+        f"java_sources=[{str(tmp_path / 'src')!r}]\n"
+        "java_external_javadoc = {'java': 'https://docs.oracle.com/en/java/javase/25/docs/api/{module}/'}\n"
+    )
+    (docs / "index.rst").write_text(
+        "External\n========\n\n:java:type:`java.util.List`\n"
+    )
+    build(docs, tmp_path / "out")
+    assert (
+        "https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html"
+        in (tmp_path / "out/index.html").read_text()
+    )
+
+
 @pytest.mark.parametrize("workers", ["1", "2"])
 def test_incremental_role_only_page_detects_removed_member(tmp_path, workers):
     sources = tmp_path / "sources"
