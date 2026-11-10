@@ -17,8 +17,10 @@ JDK links and ``sphinx.ext.linkcode`` for :ref:`source links <source-links>` to
 GitHub at the pinned commit. For an example of every feature, see the
 :doc:`gallery/index`. The build reports |showcase-total| warnings:
 
-- |showcase-java.extract| ``java.extract``: overrides of JDK methods that cannot
-  inherit their documentation, and links to libraries not on the classpath.
+- |showcase-java.inherit| ``java.inherit``: overrides of JDK methods that cannot
+  inherit their documentation, because the JDK's sources are not available.
+- |showcase-java.extract| ``java.extract``: links to libraries not on the classpath,
+  and ``{@inheritDoc}`` with no ancestor source.
 - |showcase-java.html| ``java.html``: headings and other unsupported HTML.
 - |showcase-misc.highlighting_failure| highlighting failures: ``<pre>`` examples that
   are not Java.
