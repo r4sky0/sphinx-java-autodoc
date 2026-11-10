@@ -178,7 +178,10 @@ Javadoc 9+ URL structure; Javadoc 8 anchors are not supported. URLs are built
 without fetching or checking the remote site.
 
 A role that no source comment references has no module metadata. For those, map
-the exact package without ``{module}``:
+the package, or a prefix of it within one module, without ``{module}``. The type
+name starts at the first capitalized name, as Java naming conventions have it, so
+``vendor.api.util.Thing.Inner`` under ``vendor.api`` links to
+``vendor/api/util/Thing.Inner.html``:
 
 .. code-block:: python
 
