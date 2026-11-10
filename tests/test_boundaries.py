@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import xml.etree.ElementTree as ET
 
 import pytest
@@ -134,6 +135,22 @@ def test_generation_recovers_after_each_publication_step(
     pages.publish_pages(tmp_path, published("Final"))
     manifest = json.loads((tmp_path / ".java-autodoc-manifest.json").read_text())
     assert all(isinstance(value, str) for value in manifest.values())
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX file modes")
+def test_generated_files_follow_the_umask(tmp_path):
+    umask = os.umask(0o022)
+    os.umask(umask)
+    pages.publish_pages(tmp_path, published("A"))
+    files = sorted(tmp_path.iterdir())
+    assert [p.name for p in files] == [
+        ".java-autodoc-manifest.json",
+        "index.rst",
+        "package-demo.rst",
+        "type-demo.A.rst",
+    ]
+    for path in files:
+        assert path.stat().st_mode & 0o777 == 0o666 & ~umask, path.name
 
 
 def test_recovery_preserves_user_edits(tmp_path, monkeypatch):

@@ -10,6 +10,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import threading
 import xml.etree.ElementTree as ET
 
 from sphinx.errors import ExtensionError
@@ -50,15 +51,15 @@ def atomic_write(path: Path, data: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists() and path.read_bytes() == data:
         return
-    with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as stream:
-        temporary = Path(stream.name)
-        try:
-            stream.write(data)
-            stream.flush()
-            stream.close()
-            os.replace(temporary, path)
-        finally:
-            temporary.unlink(missing_ok=True)
+    # A sibling unique to this process and thread, created with the umask's mode.
+    temporary = path.with_name(
+        f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp"
+    )
+    try:
+        temporary.write_bytes(data)
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def extract(
