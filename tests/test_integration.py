@@ -275,6 +275,33 @@ def test_intersphinx_consumer(site, tmp_path):
     )
 
 
+def test_intersphinx_resolves_summary_links_before_text_fallback(site, tmp_path):
+    _, provider = site
+    source = tmp_path / "src/consumer/Use.java"
+    source.parent.mkdir(parents=True)
+    source.write_text(
+        "package consumer;\n/** Wraps {@link demo.Widget}. More. */\npublic class Use {}\n"
+    )
+    docs = tmp_path / "consumer"
+    docs.mkdir()
+    # The order docs/usage.rst shows: this extension registers its handler first.
+    (docs / "conf.py").write_text(
+        "extensions=['sphinx_java_autodoc','sphinx.ext.intersphinx']\n"
+        f"intersphinx_mapping={{'fixture': ('https://api.example.test/', {str(provider / 'objects.inv')!r})}}\n"
+        f"java_sources=[{str(tmp_path / 'src')!r}]\n"
+        f"java_sourcepath=[{str(SOURCES)!r}]\nnitpicky=True\n"
+    )
+    (docs / "index.rst").write_text(
+        "Consumer\n========\n\n.. java:autosummary::\n\n   consumer.Use\n\n"
+        ".. java:autoclass:: consumer.Use\n"
+    )
+    build(docs, tmp_path / "out")
+    html = (tmp_path / "out/index.html").read_text()
+    summary = html[html.index("autosummary") :]
+    summary = summary[: summary.index("</table>")]
+    assert "https://api.example.test/api/type-demo.Widget.html" in summary
+
+
 def test_deterministic_extraction_and_cache(model, tmp_path):
     _, original, _ = model
     copied = tmp_path / "source with spaces"

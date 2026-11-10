@@ -109,7 +109,8 @@ def setup(app):
     app.connect("builder-inited", add_static_path)
     app.connect("builder-inited", prepare)
     app.connect("env-get-outdated", outdated)
-    app.connect("missing-reference", quiet_reference)
+    # After intersphinx (priority 500), whatever the extension order.
+    app.connect("missing-reference", quiet_reference, priority=900)
     return {
         "version": VERSION,
         "env_version": 4,
