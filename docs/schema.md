@@ -23,8 +23,11 @@ not a general XML document interchange service. No external entities are fetched
   or modifier, `kt` primitive type or `void`, `t` punctuation or spaces, `q` package
   qualifier, `n` declared name, `tv` type variable, `pname` parameter name, `v` constant
   or default value, `r` type reference, and `params` containing one `param` per
-  parameter or record component. `r` carries `target` (canonical ID) and the external
-  Javadoc `path`, `module` and `fragment`; its text is the nested simple name.
+  parameter or record component. Modifiers are those the standard doclet shows,
+  without implied ones such as `public` on interface members or `final` on records,
+  and without `native`, `synchronized` and `strictfp`. `r` carries `target`
+  (canonical ID) and the external Javadoc `path`, `module` and `fragment`; its text
+  is the nested simple name.
   Readers reject unknown tokens and malformed `r` targets.
 - `doc/part`: `kind` (`body`, `specifiedBy`, `overrides`, `param`, `typeparam`,
   `return`, `throws`, `see`, `since`, `deprecated`, `apiNote`, `implSpec`, `implNote`)

@@ -128,7 +128,7 @@ def test_semantic_extraction(model):
     )
     assert inherited.find("doc/part/link").get("target") == "demo.Widget#convert(int)"
     twice = element(root, "demo.Transformer#twice(java.lang.Object)")
-    assert signature(twice).startswith("public default T twice")
+    assert signature(twice).startswith("default T twice")
     assert [p.get("kind") for p in twice.findall("doc/part")] == [
         "body",
         "apiNote",
