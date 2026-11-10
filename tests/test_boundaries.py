@@ -8,6 +8,7 @@ import pytest
 from sphinx.errors import ExtensionError
 
 from sphinx_java_autodoc import pages
+from sphinx_java_autodoc.extractor import atomic_write
 from sphinx_java_autodoc.model import (
     PACKAGES,
     SYMBOLS,
@@ -151,6 +152,19 @@ def test_generated_files_follow_the_umask(tmp_path):
     ]
     for path in files:
         assert path.stat().st_mode & 0o777 == 0o666 & ~umask, path.name
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX symlinks")
+def test_atomic_write_refuses_a_planted_temporary_file(tmp_path, monkeypatch):
+    victim = tmp_path / "victim.txt"
+    victim.write_text("original")
+    planted = tmp_path / f".api.xml.{'0' * 16}.tmp"
+    planted.symlink_to(victim)
+    monkeypatch.setattr("secrets.token_hex", lambda n: "0" * 2 * n)
+    with pytest.raises(FileExistsError):
+        atomic_write(tmp_path / "api.xml", b"replaced")
+    assert victim.read_text() == "original"
+    assert planted.is_symlink()
 
 
 def test_recovery_preserves_user_edits(tmp_path, monkeypatch):

@@ -7,10 +7,10 @@ import json
 import os
 from pathlib import Path
 import re
+import secrets
 import shutil
 import subprocess
 import tempfile
-import threading
 import xml.etree.ElementTree as ET
 
 from sphinx.errors import ExtensionError
@@ -51,12 +51,17 @@ def atomic_write(path: Path, data: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists() and path.read_bytes() == data:
         return
-    # A sibling unique to this process and thread, created with the umask's mode.
-    temporary = path.with_name(
-        f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp"
+    temporary = path.with_name(f".{path.name}.{secrets.token_hex(8)}.tmp")
+    # O_EXCL refuses an existing file or planted symlink; the umask applies to 0o666.
+    # Opened before the try, so the cleanup never removes a file it did not create.
+    fd = os.open(
+        temporary,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0),
+        0o666,
     )
     try:
-        temporary.write_bytes(data)
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(data)
         os.replace(temporary, path)
     finally:
         temporary.unlink(missing_ok=True)
