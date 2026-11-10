@@ -410,19 +410,22 @@ def quiet_reference(app, env, node, contnode):
     return contnode if node.get("java:quiet") else None
 
 
+# Fields in the standard doclet's order, whatever the order of tags in the comment.
+# The notes come first, as in the JDK's documentation, which lists their -tag options
+# before the standard tags.
 FIELD_TITLES = {
     "specifiedBy": "Specified by",
     "overrides": "Overrides",
-    "param": "Parameters",
-    "typeparam": "Type parameters",
-    "return": "Returns",
-    "throws": "Throws",
-    "see": "See also",
-    "since": "Since",
     # The standard doclet's headings for the JDK's custom note tags.
     "apiNote": "API Note",
     "implSpec": "Implementation Requirements",
     "implNote": "Implementation Note",
+    "typeparam": "Type parameters",
+    "param": "Parameters",
+    "return": "Returns",
+    "throws": "Throws",
+    "since": "Since",
+    "see": "See also",
 }
 
 
@@ -475,8 +478,10 @@ def documentation(element: ET.Element, location) -> list[nodes.Node]:
                 label = reference(part, [label])
                 label["refwarn"] = False
             fields_by_kind.setdefault(kind, []).append((label, content))
-    for kind, items in fields_by_kind.items():
-        fields += field(kind, items)
+    # Kinds unknown to this renderer follow, in model order.
+    for kind in [*FIELD_TITLES, *fields_by_kind]:
+        if kind in fields_by_kind:
+            fields += field(kind, fields_by_kind.pop(kind))
     if notice is not None:
         if notice.children and isinstance(notice[0], nodes.paragraph):
             label = "Deprecated: "
