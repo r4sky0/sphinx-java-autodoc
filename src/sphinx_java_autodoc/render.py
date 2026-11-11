@@ -135,7 +135,8 @@ def comment(part: ET.Element, location, quiet: bool = False) -> list[nodes.Node]
 
     def table_finish(table):
         """Lays out collected rows on a grid as a docutils table with a header."""
-        rows = [child for child in table.children if isinstance(child, nodes.row)]
+        # A row without cells, such as <tr></tr>, has no place on the grid.
+        rows = [c for c in table.children if isinstance(c, nodes.row) and c.children]
         if not rows:
             warn("Javadoc <table> has no rows; use <tr> with <td> or <th> cells.")
             table.parent.remove(table)
