@@ -38,7 +38,8 @@ Set these in ``conf.py``. Paths are relative to ``conf.py``, except
      - JDK 25 home; empty uses the runtime on ``PATH``.
    * - ``java_release``
      - ``""``
-     - Source/API release; empty uses the JDK default. Tested: 17, 21, 25.
+     - Source/API release, such as ``"17"`` or ``17``; empty uses the JDK default.
+       Tested: 17, 21, 25.
    * - ``java_generate``
      - ``""``
      - Directory for generated pages, such as ``"api"``. Empty generates no pages.
@@ -128,8 +129,11 @@ Roles
 
 ``java:obj`` accepts any kind. Targets are fully qualified: there are no imports
 or short-name guessing. Parameters are erased, fully qualified types, with ``[]``
-for varargs; constructors are ``<init>``. A method without a parameter list
-resolves only when it has one overload; otherwise it warns. References inside Java
+for varargs; constructors are ``<init>``. Roles, ``java:auto*`` arguments,
+``java:autosummary`` lines and ``:members:``/``:exclude-members:`` entries all
+ignore spaces and accept ``...`` for ``[]``, so ``find(java.lang.String, int)``
+works too. A method without a parameter list resolves only when it has one
+overload; otherwise it warns. References inside Java
 comments are resolved by the compiler as usual.
 
 .. _source-links:
@@ -177,8 +181,12 @@ Map package prefixes to Javadoc roots; the longest prefix wins:
 Javadoc 9+ URL structure; Javadoc 8 anchors are not supported. URLs are built
 without fetching or checking the remote site.
 
-A role that no source comment references has no module metadata. For those, map
-the exact package without ``{module}``:
+A role takes the module and location from the extracted model when the symbol
+appears there: in a comment link, a documented exception or a signature. Other
+roles have no module metadata. For those, map the package, or a prefix of it within one module, without ``{module}``. The type
+name starts at the first capitalized name, as Java naming conventions have it, so
+``vendor.api.util.Thing.Inner`` under ``vendor.api`` links to
+``vendor/api/util/Thing.Inner.html``:
 
 .. code-block:: python
 

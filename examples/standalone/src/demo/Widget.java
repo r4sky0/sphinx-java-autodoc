@@ -29,6 +29,10 @@ import java.util.Map;
  * <td>Labelled {@value #LABEL}; long names such as
  * {@code com.example.widgets.configuration.DefaultWidgetLabelProvider} stay inside the table</td></tr>
  * </table>
+ * <h2>Terms</h2>
+ * <dl><dt><dfn>Label</dfn></dt><dd>Text shown with each value, up to 2<sup>31</sup> characters.</dd>
+ * <dt>Shortcut</dt><dd>Copy with <kbd>Ctrl</kbd>+<kbd>C</kbd>; files go to
+ * {@systemProperty user.home}.</dd></dl>
  * @see Point
  * @since 1.0
  */

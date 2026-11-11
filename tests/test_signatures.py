@@ -130,3 +130,92 @@ public class A {
     assert "@Deprecated" in sig and "@Shown" in sig
     assert "@SuppressWarnings" not in sig and "@Plain" not in sig
     assert "@Override" not in signature(element(root, "p.A#toString()"))
+
+
+def test_signature_modifiers_match_standard_doclet(tmp_path):
+    (tmp_path / "p").mkdir()
+    (tmp_path / "p/M.java").write_text("""package p;
+/** M. */
+public class M {
+  /** I. */ public interface I {
+    /** C. */ int C = 1;
+    /** A. @return x */ int a();
+    /** D. @return x */ default int d() { return 0; }
+    /** S. @return x */ static int s() { return 0; }
+    /** N. */ interface Nested {}
+  }
+  /** Ann. */ public @interface Ann { /** V. @return v */ int v() default 1; }
+  /** E. */ public enum E { /** X. */ X; /** F. @return f */ public final int f() { return 0; } }
+  /** Sealed. */ protected static sealed abstract class S permits T {}
+  /** T. */ protected static final class T extends S {}
+  /** R. @param x x */ public record R(int x) {
+    /** Sm. */ public static synchronized strictfp void m() {}
+  }
+  /** Nat. */ public native void nat();
+  /** Tv. */ public transient volatile int tv;
+}
+""")
+    (tmp_path / "p/Top.java").write_text(
+        "package p;\n/** Top. */\npublic abstract interface Top {}\n"
+    )
+    root = extract([tmp_path], [], tmp_path / "cache").root
+
+    def modifiers(symbol):
+        tokens = [t for t in element(root, symbol).find("sig") if t.tag != "t"]
+        words = []
+        for token in tokens:
+            if token.tag != "k" or token.text in {
+                "class",
+                "interface",
+                "enum",
+                "record",
+                "@interface",
+            }:
+                break
+            words.append(token.text)
+        return " ".join(words)
+
+    # As printed by the standard doclet for the same source.
+    assert {
+        symbol: modifiers(symbol)
+        for symbol in (
+            "p.M.I",
+            "p.M.I#C",
+            "p.M.I#a()",
+            "p.M.I#d()",
+            "p.M.I#s()",
+            "p.M.I.Nested",
+            "p.M.Ann",
+            "p.M.Ann#v()",
+            "p.M.E",
+            "p.M.E#X",
+            "p.M.E#f()",
+            "p.M.S",
+            "p.M.T",
+            "p.M.R",
+            "p.M.R#m()",
+            "p.M#nat()",
+            "p.M#tv",
+            "p.Top",
+        )
+    } == {
+        "p.M.I": "public static",
+        "p.M.I#C": "static final",
+        "p.M.I#a()": "",
+        "p.M.I#d()": "default",
+        "p.M.I#s()": "static",
+        "p.M.I.Nested": "public static",
+        "p.M.Ann": "public static",
+        "p.M.Ann#v()": "",
+        "p.M.E": "public static",
+        "p.M.E#X": "public static final",
+        "p.M.E#f()": "public final",
+        "p.M.S": "protected abstract static sealed",
+        "p.M.T": "protected static final",
+        "p.M.R": "public static",
+        "p.M.R#m()": "public static",
+        "p.M#nat()": "public",
+        "p.M#tv": "public transient volatile",
+        "p.Top": "public",
+    }
+    assert element(root, "p.M.I#a()").get("visibility") == "public"

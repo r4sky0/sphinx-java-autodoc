@@ -55,6 +55,21 @@ ORACLE = "https://docs.oracle.com/en/java/javase/25/docs/api/{module}/"
             {"vendor": "https://example.test/api/"},
             "https://example.test/api/vendor/Outer.Inner.html",
         ),
+        # The type starts at the first capitalized name, below the mapped prefix.
+        (
+            "vendor.api.util.Thing.Inner",
+            "vendor.api.util.Thing.Inner",
+            {},
+            {"vendor.api": "https://example.test/api/"},
+            "https://example.test/api/vendor/api/util/Thing.Inner.html",
+        ),
+        (
+            "vendor.api.util.Thing#run(int)",
+            "vendor.api.util.Thing#run(int)",
+            {},
+            {"vendor": "https://example.test/api/"},
+            "https://example.test/api/vendor/api/util/Thing.html#run(int)",
+        ),
         # A module placeholder cannot be filled without metadata.
         ("java.util.List", "java.util.List", {}, {"java": ORACLE}, None),
     ],
