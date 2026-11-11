@@ -143,6 +143,11 @@ def display_name(symbol: str) -> str:
     return f"{owner}.{member_label(symbol)}" if member else symbol
 
 
+def canonical(spelling: str) -> str:
+    """A hand-written symbol as a model ID: no spaces, and varargs ``...`` as ``[]``."""
+    return re.sub(r"\s+", "", spelling).replace("...", "[]")
+
+
 class JavaDirective(SphinxDirective):
     def visible(self, element) -> bool:
         return visible(
@@ -241,10 +246,10 @@ class AutoClass(JavaDirective):
         if "members" in self.options:
             # Semicolons allow exact signatures containing commas.
             selected = {
-                s.strip() for s in self.options["members"].split(";") if s.strip()
+                canonical(s) for s in self.options["members"].split(";") if s.strip()
             }
             excluded = {
-                s.strip()
+                canonical(s)
                 for s in self.options.get("exclude-members", "").split(";")
                 if s.strip()
             }
@@ -282,8 +287,8 @@ class AutoMember(JavaDirective):
     option_spec = {"no-index": directives.flag}
 
     def run(self):
-        symbol = re.sub(r"\s+", "", self.arguments[0])
-        element = self.lookup(symbol.replace("...", "[]"), ("member",))
+        symbol = canonical(self.arguments[0])
+        element = self.lookup(symbol, ("member",))
         if element is None:
             self.missing("member", symbol, "member")
             return []
@@ -338,7 +343,7 @@ class AutoSummary(JavaDirective):
         table = nodes.table("", classes=["autosummary", "longtable", "java"])
         rows = []
         for line in self.content:
-            symbol = re.sub(r"\s+", "", line)
+            symbol = canonical(line)
             if not symbol:
                 continue
             element = self.lookup(symbol)
@@ -436,8 +441,9 @@ class JavaDomain(Domain):
             yield symbol, display_name(symbol), kind, docname, target, 0
 
     def resolve_xref(self, env, fromdocname, builder, typ, target, node, contnode):
+        # External Javadoc fragments keep the spelling's varargs.
         spelling = re.sub(r"\s+", "", target)
-        target = spelling.replace("...", "[]")
+        target = canonical(target)
         objects = self.data["objects"]
         # Only member names can omit their parameter list.
         if target not in objects and "#" in target and "(" not in target:

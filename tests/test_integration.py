@@ -275,6 +275,33 @@ def test_intersphinx_consumer(site, tmp_path):
     )
 
 
+def test_intersphinx_resolves_summary_links_before_text_fallback(site, tmp_path):
+    _, provider = site
+    source = tmp_path / "src/consumer/Use.java"
+    source.parent.mkdir(parents=True)
+    source.write_text(
+        "package consumer;\n/** Wraps {@link demo.Widget}. More. */\npublic class Use {}\n"
+    )
+    docs = tmp_path / "consumer"
+    docs.mkdir()
+    # The order docs/usage.rst shows: this extension registers its handler first.
+    (docs / "conf.py").write_text(
+        "extensions=['sphinx_java_autodoc','sphinx.ext.intersphinx']\n"
+        f"intersphinx_mapping={{'fixture': ('https://api.example.test/', {str(provider / 'objects.inv')!r})}}\n"
+        f"java_sources=[{str(tmp_path / 'src')!r}]\n"
+        f"java_sourcepath=[{str(SOURCES)!r}]\nnitpicky=True\n"
+    )
+    (docs / "index.rst").write_text(
+        "Consumer\n========\n\n.. java:autosummary::\n\n   consumer.Use\n\n"
+        ".. java:autoclass:: consumer.Use\n"
+    )
+    build(docs, tmp_path / "out")
+    html = (tmp_path / "out/index.html").read_text()
+    summary = html[html.index("autosummary") :]
+    summary = summary[: summary.index("</table>")]
+    assert "https://api.example.test/api/type-demo.Widget.html" in summary
+
+
 def test_deterministic_extraction_and_cache(model, tmp_path):
     _, original, _ = model
     copied = tmp_path / "source with spaces"
@@ -456,6 +483,22 @@ def test_visibility_selection_and_duplicate_excerpt(tmp_path):
     assert "Converts a number to text" in html
     assert "protected extension point" not in html
     assert "Combines array" not in html
+
+
+def test_member_spellings_are_normalised_in_every_directive(tmp_path):
+    docs = project(tmp_path)
+    with (docs / "index.rst").open("a") as stream:
+        stream.write(
+            "\n.. java:autoclass:: demo.Widget\n"
+            "   :members: combine(int[][], java.lang.String...); convert(int)\n"
+            "   :exclude-members: convert( int )\n   :no-index:\n"
+            "\n.. java:autosummary::\n\n"
+            "   demo.Widget#combine(int[][], java.lang.String...)\n"
+        )
+    build(docs, tmp_path / "out")
+    html = (tmp_path / "out/index.html").read_text()
+    assert "Combines array" in html
+    assert "Converts a number to text" not in html
 
 
 def test_read_model_and_safe_generation(model, tmp_path):
@@ -813,6 +856,31 @@ def test_manual_external_role_preserves_varargs(tmp_path):
     build(docs, tmp_path / "out")
     assert (
         "https://example.test/api/vendor/Service.html#consume(java.lang.String...)"
+        in (tmp_path / "out/index.html").read_text()
+    )
+
+
+def test_manual_role_uses_signature_metadata(tmp_path):
+    source = tmp_path / "src/p/Uses.java"
+    source.parent.mkdir(parents=True)
+    source.write_text(
+        "package p;\n/** Uses lists. */\npublic class Uses {\n"
+        "    /** Gets. @return values */\n"
+        "    public java.util.List<String> get() { return null; }\n}\n"
+    )
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "conf.py").write_text(
+        "extensions=['sphinx_java_autodoc']\n"
+        f"java_sources=[{str(tmp_path / 'src')!r}]\n"
+        "java_external_javadoc = {'java': 'https://docs.oracle.com/en/java/javase/25/docs/api/{module}/'}\n"
+    )
+    (docs / "index.rst").write_text(
+        "External\n========\n\n:java:type:`java.util.List`\n"
+    )
+    build(docs, tmp_path / "out")
+    assert (
+        "https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html"
         in (tmp_path / "out/index.html").read_text()
     )
 

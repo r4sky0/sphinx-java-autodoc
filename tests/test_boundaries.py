@@ -11,6 +11,7 @@ from sphinx_java_autodoc import pages
 from sphinx_java_autodoc.extractor import atomic_write
 from sphinx_java_autodoc.model import (
     PACKAGES,
+    REFERENCES,
     SYMBOLS,
     grouped,
     local_name,
@@ -119,6 +120,26 @@ def test_model_finds_symbols_and_labels():
     assert [local_name(a), local_name(run)] == ["A", "run()"]
     assert member_label("demo.A#<init>(java.lang.String,int[])") == "A(String, int[])"
     assert list(grouped(a.findall("member"))) == ["method"]
+
+
+def test_external_locations_come_from_links_throws_and_signatures():
+    root = model("A")
+    run = root.find("type/member")
+    ET.SubElement(run.find("sig"), "r", target="ext.Sig", path="ext/Sig.html")
+    doc = ET.SubElement(run, "doc")
+    ET.SubElement(doc, "part", kind="throws", target="ext.Fail", path="ext/Fail.html")
+    body = ET.SubElement(doc, "part", kind="body")
+    ET.SubElement(body, "link", target="ext.Link", path="ext/Link.html")
+    # The same target unresolved elsewhere keeps the location found first.
+    ET.SubElement(body, "link", target="ext.Link")
+    use_model(root)
+    assert {
+        t: REFERENCES[t].get("path") for t in ("ext.Sig", "ext.Fail", "ext.Link")
+    } == {
+        "ext.Sig": "ext/Sig.html",
+        "ext.Fail": "ext/Fail.html",
+        "ext.Link": "ext/Link.html",
+    }
 
 
 @pytest.mark.parametrize("failure", range(1, 6))
