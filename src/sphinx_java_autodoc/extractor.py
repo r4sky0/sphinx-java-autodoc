@@ -17,7 +17,7 @@ from sphinx.errors import ExtensionError
 
 from .model import Model, read_model
 
-VERSION = "0.6.0"  # x-release-please-version
+VERSION = "0.7.0"  # x-release-please-version
 DOCLET = Path(__file__).parent / "java" / "SphinxDoclet.java"
 PACKAGE = re.compile(r"[^\W\d]\w*(?:\.[^\W\d]\w*)*")
 # The JVM announces options from variables such as JAVA_TOOL_OPTIONS on stderr.
