@@ -38,7 +38,8 @@ Set these in ``conf.py``. Paths are relative to ``conf.py``, except
      - JDK 25 home; empty uses the runtime on ``PATH``.
    * - ``java_release``
      - ``""``
-     - Source/API release; empty uses the JDK default. Tested: 17, 21, 25.
+     - Source/API release, such as ``"17"`` or ``17``; empty uses the JDK default.
+       Tested: 17, 21, 25.
    * - ``java_generate``
      - ``""``
      - Directory for generated pages, such as ``"api"``. Empty generates no pages.
