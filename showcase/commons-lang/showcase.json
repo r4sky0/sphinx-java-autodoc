@@ -14,8 +14,9 @@
     "lumina": "Lumina"
   },
   "warnings": {
-    "java.extract": 106,
+    "java.extract": 8,
     "java.html": 31,
+    "java.inherit": 98,
     "misc.highlighting_failure": 20,
     "ref.field": 2,
     "ref.method": 1,

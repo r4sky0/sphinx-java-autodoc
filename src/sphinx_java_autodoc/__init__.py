@@ -61,7 +61,9 @@ def prepare(app):
     app.env.java_model_path = str(model.path)
     use_model(root)
     for diagnostic in root.findall("diagnostic"):
-        LOGGER.warning(diagnostic.text, type="java", subtype="extract")
+        # The kind lets suppress_warnings = ["java.inherit"] keep the other warnings.
+        subtype = diagnostic.get("kind", "extract")
+        LOGGER.warning(diagnostic.text, type="java", subtype=subtype)
     if config.java_generate:
         directory = (Path(app.srcdir) / config.java_generate).resolve()
         if (

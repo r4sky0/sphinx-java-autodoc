@@ -411,8 +411,28 @@ def test_unknown_block_tags_still_warn(tmp_path):
         "/** Text.\n * @todo finish\n * @author A\n */\npublic class Todo {}\n"
     )
     (diagnostic,) = extract([source], [], tmp_path / "cache").root.findall("diagnostic")
-    assert "Unsupported block tag UNKNOWN_BLOCK_TAG" in diagnostic.text
-    assert "AUTHOR" not in diagnostic.text
+    assert "Unsupported block tag @todo;" in diagnostic.text
+    assert "author" not in diagnostic.text.lower()
+
+
+def test_unresolved_throws_names_warn_like_links(tmp_path):
+    source = tmp_path / "Thrower.java"
+    source.write_text("""public class Thrower {
+    /** Fails.
+     * @throws MissingEx when it fails
+     * @exception IllegalStateException when it is late
+     */
+    public void run() {}
+}
+""")
+    root = extract([source], [], tmp_path / "cache").root
+    (diagnostic,) = root.findall("diagnostic")
+    assert diagnostic.text == (
+        "Thrower#run(): Unresolved Javadoc reference MissingEx; check spelling,"
+        " source paths and classpath."
+    )
+    labels = [p.get("label") for p in root.iter("part") if p.get("kind") == "throws"]
+    assert labels == ["MissingEx", "IllegalStateException"]
 
 
 def test_unresolved_and_ambiguous_sphinx_roles(site, tmp_path):
@@ -532,6 +552,39 @@ def test_binary_ancestor_docs_warn_and_malformed_comments(tmp_path):
     messages = "\n".join(d.text for d in root.findall("diagnostic"))
     assert "Cannot resolve inheritDoc" in messages
     assert "Malformed Javadoc" in messages
+
+
+def test_implicit_inheritance_warnings_have_their_own_category(tmp_path):
+    source = tmp_path / "src/p/Plain.java"
+    source.parent.mkdir(parents=True)
+    source.write_text("""package p;
+/** Plain. */
+public class Plain {
+    /** Text. */
+    @Override public String toString() { return ""; }
+    /** {@inheritDoc} */
+    @Override public int hashCode() { return 0; }
+}
+""")
+    root = extract([tmp_path / "src"], [], tmp_path / "cache").root
+    assert [(d.text.split(";")[0], d.get("kind")) for d in root.iter("diagnostic")] == [
+        ("p.Plain#hashCode(): Cannot inherit return", "inherit"),
+        # An explicit inheritDoc leaves a marker in the output, so it stays extract.
+        ("p.Plain#hashCode(): Cannot resolve inheritDoc for body", None),
+        ("p.Plain#toString(): Cannot inherit return", "inherit"),
+    ]
+    source.write_text(source.read_text().replace("{@inheritDoc}", "Hashes."))
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    conf = (
+        "extensions = ['sphinx_java_autodoc']\n"
+        f"java_sources = [{str(tmp_path / 'src')!r}]\n"
+    )
+    (docs / "conf.py").write_text(conf)
+    (docs / "index.rst").write_text("Plain\n=====\n\n.. java:autoclass:: p.Plain\n")
+    assert "[java.inherit]" in build(docs, tmp_path / "strict", success=False)
+    (docs / "conf.py").write_text(conf + "suppress_warnings = ['java.inherit']\n")
+    build(docs, tmp_path / "html")
 
 
 def test_concurrent_cache_publication(tmp_path):

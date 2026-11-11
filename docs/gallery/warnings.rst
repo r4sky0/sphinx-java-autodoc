@@ -16,14 +16,18 @@ this site builds with ``-W``, so a real warning would fail it.
      - Markdown documentation comments are not supported
      - ``java.extract``
    * - An unknown block tag, such as ``@todo``
-     - Unsupported block tag UNKNOWN_BLOCK_TAG
+     - Unsupported block tag @todo
      - ``java.extract``
    * - External snippets, regions or markup
      - Unsupported snippet attributes or markup
      - ``java.extract``
-   * - ``{@link}`` to a symbol the compiler can't find
+   * - ``{@link}`` or ``@throws`` naming a symbol the compiler can't find
      - Unresolved Javadoc reference
      - ``java.extract``
+   * - An override without its own text, such as ``toString``, whose ancestor has
+       no source documentation
+     - Cannot inherit
+     - ``java.inherit``
    * - ``{@inheritDoc}`` without ancestor source
      - Cannot resolve inheritDoc
      - ``java.extract``

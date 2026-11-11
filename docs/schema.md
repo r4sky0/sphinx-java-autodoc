@@ -67,7 +67,10 @@ not a general XML document interchange service. No external entities are fetched
   `Map.Entry`, `String.format(String, Object...)` or `of(L, R)` within the same type.
   An unresolved link has no resolved location and has a diagnostic.
 - `diagnostic`: symbol-qualified warning text, including unsupported constructs.
-  Warnings survive cache hits and are re-emitted by Sphinx.
+  Warnings survive cache hits and are re-emitted by Sphinx. An optional `kind`
+  is `inherit` for an omitted part that no ancestor documents, or `extract`; a
+  diagnostic without `kind` is `extract`. Sphinx warns with the kind as subtype,
+  such as `java.inherit`. Readers reject other kinds. Additive in schema 1.
 
 Identity examples: `example.Outer.Inner`, `example.Outer#FIELD`,
 `example.Outer#find(java.lang.String,int[])`, `example.Outer#<init>()`.
