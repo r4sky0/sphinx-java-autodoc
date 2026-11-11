@@ -161,6 +161,20 @@ def test_table_without_header_rows_and_nested_tables(warnings):
     assert nested.parent["classes"] == ["java-table-wrapper"]
 
 
+def test_rows_without_cells_are_dropped(warnings):
+    markup = (
+        start("table")
+        + start("tr")
+        + end("tr")
+        + start("tr")
+        + start("td")
+        + "<text>cell</text>"
+        + end("table")
+    )
+    assert cells(render(markup)) == [["cell"]]
+    assert warnings == []
+
+
 @pytest.mark.parametrize(
     ("markup", "message"),
     [
@@ -178,6 +192,11 @@ def test_table_without_header_rows_and_nested_tables(warnings):
             "Invalid colspan",
         ),
         (start("table") + end("table"), "<table> has no rows"),
+        (start("table") + start("tr") + end("tr") + end("table"), "has no rows"),
+        (
+            start("table") + start("tr") + "<text>text</text>" + end("table"),
+            "has no rows",
+        ),
     ],
 )
 def test_invalid_table_markup_warns(warnings, markup, message):
