@@ -11,7 +11,8 @@ HTML, inline tags and snippets
 One class comment uses most of the supported content: paragraphs, emphasis, nested
 lists, ``<pre>{@code ...}</pre>`` blocks, line breaks, external links, an inline
 ``{@snippet}``, a table with a caption, ``{@value}``, ``{@link}`` and
-``{@linkplain}``, and the ``@see`` and ``@since`` tags.
+``{@linkplain}``, a heading, a definition list, ``<sup>``, ``<kbd>``,
+``{@systemProperty}``, and the ``@see`` and ``@since`` tags.
 
 .. literalinclude:: ../../examples/standalone/src/demo/Widget.java
    :language: java

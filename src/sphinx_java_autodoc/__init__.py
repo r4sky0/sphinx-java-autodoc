@@ -61,7 +61,9 @@ def prepare(app):
     app.env.java_model_path = str(model.path)
     use_model(root)
     for diagnostic in root.findall("diagnostic"):
-        LOGGER.warning(diagnostic.text, type="java", subtype="extract")
+        # The kind lets suppress_warnings = ["java.inherit"] keep the other warnings.
+        subtype = diagnostic.get("kind", "extract")
+        LOGGER.warning(diagnostic.text, type="java", subtype=subtype)
     if config.java_generate:
         directory = (Path(app.srcdir) / config.java_generate).resolve()
         if (
@@ -95,7 +97,6 @@ def setup(app):
         "java_encoding": "UTF-8",
         "java_exclude_packages": [],
         "java_jdk": "",
-        "java_release": "",
         "java_model": "",
         "java_generate": "",
         "java_visibility": "protected",
@@ -103,6 +104,8 @@ def setup(app):
         "java_maximum_signature_line_length": None,
     }.items():
         app.add_config_value(name, default, "env")
+    # A release is often written as a number, such as java_release = 17.
+    app.add_config_value("java_release", "", "env", types=frozenset({str, int}))
     app.add_domain(JavaDomain)
     add_linkcode_domain("java", ["fullname", "source", "line"])
     app.add_css_file("java-autodoc.css")

@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import json
+import os
 import xml.etree.ElementTree as ET
 
 import pytest
 from sphinx.errors import ExtensionError
 
 from sphinx_java_autodoc import pages
+from sphinx_java_autodoc.extractor import atomic_write
 from sphinx_java_autodoc.model import (
     PACKAGES,
     REFERENCES,
@@ -93,6 +95,20 @@ def test_model_rejects_missing_or_empty_signature(tmp_path, tag):
             read_model(path)
 
 
+def test_model_accepts_only_known_diagnostic_kinds(tmp_path):
+    root = model("A")
+    for kind in ("extract", "inherit"):
+        ET.SubElement(root, "diagnostic", kind=kind).text = "A: text"
+    ET.SubElement(root, "diagnostic").text = "A: text"
+    path = tmp_path / "api.xml"
+    path.write_bytes(ET.tostring(root))
+    read_model(path)
+    ET.SubElement(root, "diagnostic", kind="html").text = "A: text"
+    path.write_bytes(ET.tostring(root))
+    with pytest.raises(ExtensionError, match="invalid diagnostic kind"):
+        read_model(path)
+
+
 def test_model_finds_symbols_and_labels():
     root = model("A", "B")
     root.find("type").set("visibility", "protected")
@@ -155,6 +171,35 @@ def test_generation_recovers_after_each_publication_step(
     pages.publish_pages(tmp_path, published("Final"))
     manifest = json.loads((tmp_path / ".java-autodoc-manifest.json").read_text())
     assert all(isinstance(value, str) for value in manifest.values())
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX file modes")
+def test_generated_files_follow_the_umask(tmp_path):
+    umask = os.umask(0o022)
+    os.umask(umask)
+    pages.publish_pages(tmp_path, published("A"))
+    files = sorted(tmp_path.iterdir())
+    assert [p.name for p in files] == [
+        ".java-autodoc-manifest.json",
+        "index.rst",
+        "package-demo.rst",
+        "type-demo.A.rst",
+    ]
+    for path in files:
+        assert path.stat().st_mode & 0o777 == 0o666 & ~umask, path.name
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX symlinks")
+def test_atomic_write_refuses_a_planted_temporary_file(tmp_path, monkeypatch):
+    victim = tmp_path / "victim.txt"
+    victim.write_text("original")
+    planted = tmp_path / f".api.xml.{'0' * 16}.tmp"
+    planted.symlink_to(victim)
+    monkeypatch.setattr("secrets.token_hex", lambda n: "0" * 2 * n)
+    with pytest.raises(FileExistsError):
+        atomic_write(tmp_path / "api.xml", b"replaced")
+    assert victim.read_text() == "original"
+    assert planted.is_symlink()
 
 
 def test_recovery_preserves_user_edits(tmp_path, monkeypatch):

@@ -22,9 +22,18 @@ ATTRIBUTES = {
 }
 # Unsupported block elements still end the current paragraph.
 BLOCK_LEVEL = {
-    *(f"h{level}" for level in range(1, 7)),
-    *("address", "article", "aside", "center", "dd", "div", "dl", "dt", "figcaption"),
-    *("figure", "footer", "header", "hr", "main", "nav", "section"),
+    *("address", "article", "aside", "center", "div", "figcaption", "figure"),
+    *("footer", "header", "hr", "main", "nav", "section"),
+}
+HEADINGS = {f"h{level}" for level in range(1, 7)}
+# Inline elements; <a> and <br> are handled separately.
+INLINE = {
+    **dict.fromkeys(("b", "strong"), nodes.strong),
+    **dict.fromkeys(("i", "em", "var", "cite", "dfn"), nodes.emphasis),
+    **dict.fromkeys(("code", "tt", "kbd", "samp"), nodes.literal),
+    "sup": nodes.superscript,
+    "sub": nodes.subscript,
+    "small": nodes.inline,
 }
 # HTML limits for cell spans.
 SPAN_LIMITS = {"colspan": 1000, "rowspan": 65534}
@@ -51,8 +60,9 @@ def comment(part: ET.Element, location, quiet: bool = False) -> list[nodes.Node]
     """Renders comment tokens; ``quiet`` skips warnings for repeated renderings."""
     root = nodes.container()
     stack: list[tuple[str, nodes.Element]] = [("root", root)]
-    block_tags = {"p", "ul", "ol", "li", "pre", "blockquote"}
-    supported = block_tags | TABLE_TAGS | {"code", "b", "strong", "i", "em", "a", "br"}
+    block_tags = {"p", "ul", "ol", "li", "pre", "blockquote", "dl", "dt", "dd"}
+    block_tags |= HEADINGS
+    supported = block_tags | TABLE_TAGS | INLINE.keys() | {"a", "br"}
     head_rows: set[int] = set()
     header_cells: set[int] = set()
     # Paragraphs from <p> or ended by a block element take no further inline content.
@@ -135,7 +145,8 @@ def comment(part: ET.Element, location, quiet: bool = False) -> list[nodes.Node]
 
     def table_finish(table):
         """Lays out collected rows on a grid as a docutils table with a header."""
-        rows = [child for child in table.children if isinstance(child, nodes.row)]
+        # A row without cells, such as <tr></tr>, has no place on the grid.
+        rows = [c for c in table.children if isinstance(c, nodes.row) and c.children]
         if not rows:
             warn("Javadoc <table> has no rows; use <tr> with <td> or <th> cells.")
             table.parent.remove(table)
@@ -198,7 +209,14 @@ def comment(part: ET.Element, location, quiet: bool = False) -> list[nodes.Node]
                 warn("Javadoc table content must be inside <td> or <th>.")
             return
         if isinstance(
-            current, (nodes.container, nodes.list_item, nodes.block_quote, nodes.entry)
+            current,
+            (
+                nodes.container,
+                nodes.list_item,
+                nodes.block_quote,
+                nodes.entry,
+                nodes.definition,
+            ),
         ):
             last = current.children[-1] if current.children else None
             if not isinstance(last, nodes.paragraph) or id(last) in sealed:
@@ -210,6 +228,9 @@ def comment(part: ET.Element, location, quiet: bool = False) -> list[nodes.Node]
         elif isinstance(current, (nodes.bullet_list, nodes.enumerated_list)):
             if node.astext().strip():
                 warn("Javadoc list content must be inside <li>.")
+        elif isinstance(current, nodes.definition_list):
+            if node.astext().strip():
+                warn("Javadoc definition list content must be inside <dt> or <dd>.")
         else:
             current += node
 
@@ -280,6 +301,11 @@ def comment(part: ET.Element, location, quiet: bool = False) -> list[nodes.Node]
                             if open_tag == "li":
                                 close("li")
                                 break
+                    # <dt> and <dd> end the previous term or definition.
+                    if name in {"dt", "dd"} and unwind({"dl"}) is None:
+                        warn(f"Javadoc <{name}> needs a surrounding <dl>.")
+                        continue
+                    parent = stack[-1][1]
                     if name == "p":
                         node = nodes.paragraph()
                         sealed.add(id(node))
@@ -293,21 +319,33 @@ def comment(part: ET.Element, location, quiet: bool = False) -> list[nodes.Node]
                         node = nodes.literal_block(
                             "", "", language=attrs.get("lang", "java")
                         )
+                        if "lang" not in attrs:
+                            # Javadoc never highlights <pre>, which often holds no Java.
+                            node["force"] = True
+                    elif name in HEADINGS:
+                        # Like Sphinx's rubric directive: a heading outside the TOC.
+                        node = nodes.rubric()
+                    elif name == "dl":
+                        node = nodes.definition_list()
+                    elif name == "dt":
+                        parent += nodes.definition_list_item()
+                        parent, node = parent[-1], nodes.term()
+                    elif name == "dd":
+                        last = parent[-1] if parent.children else None
+                        if last is None or isinstance(last[-1], nodes.definition):
+                            parent += nodes.definition_list_item("", nodes.term())
+                        parent, node = parent[-1], nodes.definition()
                     else:
                         node = nodes.block_quote()
                     if name == "li" and not isinstance(
-                        stack[-1][1], (nodes.bullet_list, nodes.enumerated_list)
+                        parent, (nodes.bullet_list, nodes.enumerated_list)
                     ):
                         warn("Javadoc <li> needs a surrounding <ul> or <ol>.")
                         continue
-                    stack[-1][1].append(node)
+                    parent.append(node)
                 else:
-                    if name in {"b", "strong"}:
-                        node = nodes.strong()
-                    elif name in {"i", "em"}:
-                        node = nodes.emphasis()
-                    elif name == "code":
-                        node = nodes.literal()
+                    if name in INLINE:
+                        node = INLINE[name]()
                     else:
                         href = attrs.get("href", "")
                         if urlsplit(href).scheme not in {"https", "http", "mailto"}:
@@ -379,7 +417,11 @@ def summary(element: ET.Element, location) -> list[nodes.Node]:
     """Returns the first sentence of the description as inline nodes."""
     body = element.find("doc/part[@kind='body']")
     content = comment(body, location, quiet=True) if body is not None else []
-    if not content or not isinstance(content[0], nodes.paragraph):
+    first = content[0] if content else None
+    if isinstance(first, nodes.line_block):
+        # <br> turns the first paragraph into lines; the summary comes from the first.
+        first = first[0]
+    if not isinstance(first, (nodes.paragraph, nodes.line)):
         return []
     done = False
 
@@ -398,7 +440,7 @@ def summary(element: ET.Element, location) -> list[nodes.Node]:
                 break
         return copy
 
-    sentence = truncate(content[0])
+    sentence = truncate(first)
     # The full description reports unresolved links; the summary repeats them quietly.
     for reference in sentence.findall(addnodes.pending_xref):
         reference["java:quiet"] = True
@@ -410,19 +452,22 @@ def quiet_reference(app, env, node, contnode):
     return contnode if node.get("java:quiet") else None
 
 
+# Fields in the standard doclet's order, whatever the order of tags in the comment.
+# The notes come first, as in the JDK's documentation, which lists their -tag options
+# before the standard tags.
 FIELD_TITLES = {
     "specifiedBy": "Specified by",
     "overrides": "Overrides",
-    "param": "Parameters",
-    "typeparam": "Type parameters",
-    "return": "Returns",
-    "throws": "Throws",
-    "see": "See also",
-    "since": "Since",
     # The standard doclet's headings for the JDK's custom note tags.
     "apiNote": "API Note",
     "implSpec": "Implementation Requirements",
     "implNote": "Implementation Note",
+    "typeparam": "Type parameters",
+    "param": "Parameters",
+    "return": "Returns",
+    "throws": "Throws",
+    "since": "Since",
+    "see": "See also",
 }
 
 
@@ -475,8 +520,10 @@ def documentation(element: ET.Element, location) -> list[nodes.Node]:
                 label = reference(part, [label])
                 label["refwarn"] = False
             fields_by_kind.setdefault(kind, []).append((label, content))
-    for kind, items in fields_by_kind.items():
-        fields += field(kind, items)
+    # Kinds unknown to this renderer follow, in model order.
+    for kind in [*FIELD_TITLES, *fields_by_kind]:
+        if kind in fields_by_kind:
+            fields += field(kind, fields_by_kind.pop(kind))
     if notice is not None:
         if notice.children and isinstance(notice[0], nodes.paragraph):
             label = "Deprecated: "

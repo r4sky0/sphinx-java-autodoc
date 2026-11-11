@@ -117,6 +117,9 @@ def read_model(path: Path) -> ET.Element:
                     )
                 if not valid:
                     raise ValueError(f"invalid member identity or kind for {symbol!r}")
+        for diagnostic in root.findall("diagnostic"):
+            if diagnostic.get("kind", "extract") not in {"extract", "inherit"}:
+                raise ValueError("invalid diagnostic kind")
         tokens = {"k", "kt", "t", "q", "n", "tv", "pname", "v", "r"}
         for sig in root.findall("type/sig") + root.findall("type/member/sig"):
             for token in sig.iter():
