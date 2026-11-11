@@ -22,8 +22,8 @@ def external_url(
     """The Javadoc URL for a canonical ``target`` under the longest matching prefix.
 
     ``metadata`` is the compiler's path, fragment and module for the target; without
-    it, the URL is derived from the reference ``spelling`` and the prefix must be
-    the exact package.
+    it, the URL is derived from the reference ``spelling``, whose type starts at the
+    first capitalized name, or else right after the prefix.
     """
     for prefix, base in sorted(mapping.items(), key=lambda item: -len(item[0])):
         if target != prefix and not target.startswith(prefix.rstrip(".") + "."):
@@ -36,8 +36,13 @@ def external_url(
             if "{module}" in base:
                 continue
             owner, _, fragment = spelling.partition("#")
-            package = prefix.rstrip(".")
-            path = package.replace(".", "/") + "/" + owner[len(package) + 1 :] + ".html"
+            names = owner.split(".")
+            # By Java naming convention, the type starts at the first capitalized name.
+            start = next(
+                (i for i, name in enumerate(names) if name[:1].isupper()),
+                prefix.rstrip(".").count(".") + 1,
+            )
+            path = "/".join(names[:start] + [".".join(names[start:]) + ".html"])
         url = base.rstrip("/") + "/" + quote(path, safe="/.$")
         if fragment:
             url += "#" + quote(fragment, safe="(),.[]$")

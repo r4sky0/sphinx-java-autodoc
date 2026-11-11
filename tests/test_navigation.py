@@ -150,6 +150,13 @@ def test_deprecated_members_use_the_standard_notice(site):
         ),
         ("<text>No period</text>", "No period"),
         ('<start name="pre"/><text>code</text><end name="pre"/>', ""),
+        # A first paragraph with line breaks becomes a line block.
+        (
+            '<text>First </text><start name="em"/><text>line</text><end name="em"/>'
+            '<start name="br"/><text>Second.</text>',
+            "First line",
+        ),
+        ('<text>Ends. Here</text><start name="br"/><text>Next.</text>', "Ends."),
     ],
 )
 def test_summary_is_the_first_sentence(tokens, expected):

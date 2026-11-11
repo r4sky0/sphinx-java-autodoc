@@ -3,6 +3,9 @@ Declarations and signatures
 
 Signatures come from the compiler, so they show exactly what JDK 25 accepts. Type
 names in signatures link to their documentation, here or in external Javadoc.
+Modifiers are those the standard doclet shows: it leaves out implied ones, such as
+``public`` on interface members, ``abstract`` on interfaces and ``final`` on records
+and enums, and implementation details such as ``synchronized`` and ``native``.
 
 Generics, arrays and varargs
 ----------------------------
