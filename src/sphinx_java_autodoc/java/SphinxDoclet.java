@@ -320,8 +320,10 @@ public final class SphinxDoclet implements Doclet {
       sig.addText("t", " ");
     }
     for (var modifier : e.getModifiers()) {
-      sig.addText("k", modifier.toString());
-      sig.addText("t", " ");
+      if (shown(e, modifier)) {
+        sig.addText("k", modifier.toString());
+        sig.addText("t", " ");
+      }
     }
     switch (e) {
       case TypeElement type -> typeSig(sig, type);
@@ -338,6 +340,27 @@ public final class SphinxDoclet implements Doclet {
       }
       default -> throw new IllegalArgumentException("Unexpected declaration " + e);
     }
+  }
+
+  /**
+   * Whether the standard doclet shows the modifier: it leaves out implementation details and
+   * modifiers that the declaration's kind implies, such as {@code public} on interface members.
+   */
+  private static boolean shown(Element e, Modifier modifier) {
+    var kind = e.getKind();
+    boolean interfaceMember =
+        !(e instanceof TypeElement) && e.getEnclosingElement().getKind().isInterface();
+    return switch (modifier) {
+      case NATIVE, SYNCHRONIZED, STRICTFP -> false;
+      case PUBLIC -> !interfaceMember;
+      case PROTECTED, PRIVATE, STATIC -> true;
+      case ABSTRACT ->
+          kind != ElementKind.ENUM
+              && !kind.isInterface()
+              && !(interfaceMember && e instanceof ExecutableElement);
+      case FINAL -> kind != ElementKind.ENUM && kind != ElementKind.RECORD;
+      default -> kind != ElementKind.ENUM;
+    };
   }
 
   private void typeSig(Xml sig, TypeElement type) {
@@ -553,6 +576,15 @@ public final class SphinxDoclet implements Doclet {
   }
 
   private Xml declaration(Xml parent, String tag, Element e) {
+    try {
+      return declarationNode(parent, tag, e);
+    } catch (RuntimeException ex) {
+      // Names the declaration in "Sphinx extraction failed", so its comment can be found.
+      throw new IllegalStateException(id(e) + ": " + ex, ex);
+    }
+  }
+
+  private Xml declarationNode(Xml parent, String tag, Element e) {
     var node =
         parent
             .add(tag)
@@ -992,6 +1024,16 @@ public final class SphinxDoclet implements Doclet {
         case StartElementTree start -> startElement(parent, start);
         case EndElementTree end -> parent.add("end").set("name", end.getName().toString());
         case InheritDocTree inherit -> inheritDoc(parent, owner, key, inherit, chain);
+        // The standard doclet shows an index term and a summary as text, and a system
+        // property as code. A quoted index term, which may contain spaces, loses its quotes.
+        case IndexTree index -> {
+          String term = index.getSearchTerm().toString();
+          parent.addText(
+              "text", term.matches("\".*\"") ? term.substring(1, term.length() - 1) : term);
+        }
+        case SummaryTree summary -> emit(parent, owner, key, summary.getSummary(), chain);
+        case SystemPropertyTree property ->
+            parent.addText("code", property.getPropertyName().toString());
         case ReturnTree ret -> {
           parent.addText("text", "Returns ");
           emit(parent, owner, "return", ret.getDescription(), chain);
@@ -1047,8 +1089,27 @@ public final class SphinxDoclet implements Doclet {
       parent.addText("literal", "[missing link target]");
       return;
     }
-    var link = parent.add("link").set("plain", Boolean.toString(plain));
     var target = resolve(owner, ref);
+    // Type parameters and modules have no page in the model; they stay code text.
+    if (target instanceof TypeParameterElement || target instanceof ModuleElement) {
+      if (!plain) {
+        parent.add("start").set("name", "code").set("closed", "false");
+      }
+      if (label.isEmpty()) {
+        String name =
+            target instanceof ModuleElement module
+                ? module.getQualifiedName().toString()
+                : target.getSimpleName().toString();
+        parent.addText("text", name);
+      } else {
+        emit(parent, owner, "label", label, new HashSet<>());
+      }
+      if (!plain) {
+        parent.add("end").set("name", "code");
+      }
+      return;
+    }
+    var link = parent.add("link").set("plain", Boolean.toString(plain));
     link.set("target", target == null ? ref.toString() : id(target));
     if (target == null) {
       warn(

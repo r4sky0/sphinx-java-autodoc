@@ -118,15 +118,10 @@ def summary_type(element) -> list[nodes.Node]:
         else:
             tokens.append(sig[i])
         i += 1
-    owner = SYMBOLS.get(element.get("id").partition("#")[0])
-    interface = owner is not None and owner.get("kind") in {
-        "interface",
-        "annotation_type",
-    }
     modifiers = []
     while tokens and (tokens[0].tag == "k" or tokens[0].text == " "):
         text = tokens.pop(0).text
-        if text in SUMMARY_MODIFIERS and not (interface and text == "abstract"):
+        if text in SUMMARY_MODIFIERS:
             modifiers.append(text)
     if tokens and tokens[-1].tag == "t" and tokens[-1].text == " ":
         tokens.pop()

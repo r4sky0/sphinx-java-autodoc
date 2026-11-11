@@ -31,8 +31,8 @@ this site builds with ``-W``, so a real warning would fail it.
    * - ``{@inheritDoc}`` without ancestor source
      - Cannot resolve inheritDoc
      - ``java.extract``
-   * - An HTML element outside the supported subset, such as ``<h3>``
-     - Unsupported Javadoc HTML <h3>
+   * - An HTML element outside the supported subset, such as ``<img>``
+     - Unsupported Javadoc HTML <img>
      - ``java.html``
    * - A ``:members:`` entry that doesn't exist
      - Java member ... was not found

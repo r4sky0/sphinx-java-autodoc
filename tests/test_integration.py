@@ -128,7 +128,7 @@ def test_semantic_extraction(model):
     )
     assert inherited.find("doc/part/link").get("target") == "demo.Widget#convert(int)"
     twice = element(root, "demo.Transformer#twice(java.lang.Object)")
-    assert signature(twice).startswith("public default T twice")
+    assert signature(twice).startswith("default T twice")
     assert [p.get("kind") for p in twice.findall("doc/part")] == [
         "body",
         "apiNote",
@@ -391,6 +391,13 @@ public class Bad {
     assert output.read_text() == "previous good model"
 
 
+def test_jvm_option_notices_are_not_diagnostics(tmp_path, monkeypatch):
+    source = tmp_path / "Clean.java"
+    source.write_text("/** Clean. */\npublic class Clean {}\n")
+    monkeypatch.setenv("JAVA_TOOL_OPTIONS", "-Dsphinx.test=1")
+    assert not extract([source], [], tmp_path / "cache").root.findall("diagnostic")
+
+
 def test_markdown_diagnostic(tmp_path):
     source = tmp_path / "Markdown.java"
     source.write_text("/// A **Markdown** comment.\npublic class Markdown {}\n")
@@ -479,6 +486,10 @@ def test_read_model_and_safe_generation(model, tmp_path):
 def test_source_release_levels(tmp_path, release):
     root = extract([SOURCES], [], tmp_path / "cache", release=release).root
     assert element(root, "demo.Point").get("kind") == "record"
+
+
+def test_release_may_be_an_integer(tmp_path):
+    build(project(tmp_path, extra="java_release = 17\n"), tmp_path / "out")
 
 
 def test_text_builder(site, tmp_path):
@@ -618,6 +629,68 @@ def test_safe_html_and_native_lists():
     assert isinstance(inner.parent, nodes.list_item)
     assert not list(result.findall(nodes.reference))
     assert "<script>alert(1)</script>" in result.astext()
+
+
+def test_more_javadoc_html_and_inline_tags_render_natively(tmp_path, monkeypatch):
+    from docutils import nodes
+
+    from sphinx_java_autodoc import render
+
+    source = tmp_path / "src/p/Html.java"
+    source.parent.mkdir(parents=True)
+    source.write_text("""package p;
+/**
+ * {@summary Short summary.} Range 2<sup>31</sup> and x<sub>i</sub>, <tt>tt</tt>
+ * <kbd>Ctrl</kbd> <samp>out</samp>, <var>n</var> <cite>Book</cite> <dfn>term</dfn>
+ * <small>fine print</small>.
+ * <h2>Usage</h2>
+ * After the heading, {@index "search term" a description} and
+ * {@systemProperty user.home}.
+ * <dl><dt>Key</dt><dd>Value text.</dd><dt>Other<dd>More.</dl>
+ */
+public class Html {}
+""")
+    root = extract([tmp_path / "src"], [], tmp_path / "cache").root
+    assert not root.findall("diagnostic")
+    warnings = []
+    monkeypatch.setattr(
+        render.LOGGER, "warning", lambda message, **_: warnings.append(message)
+    )
+    body = element(root, "p.Html").find("doc/part[@kind='body']")
+    result = nodes.container("", *render.comment(body, None))
+    assert warnings == []
+
+    def texts(kind):
+        return [n.astext() for n in result.findall(kind)]
+
+    assert texts(nodes.superscript) == ["31"]
+    assert texts(nodes.subscript) == ["i"]
+    assert texts(nodes.literal) == ["tt", "Ctrl", "out", "user.home"]
+    assert texts(nodes.emphasis) == ["n", "Book", "term"]
+    assert texts(nodes.rubric) == ["Usage"]
+    assert texts(nodes.term) == ["Key", "Other"]
+    assert texts(nodes.definition) == ["Value text.", "More."]
+    assert [type(n) for n in result.children] == [
+        nodes.paragraph,
+        nodes.rubric,
+        nodes.paragraph,
+        nodes.definition_list,
+    ]
+    assert result.children[0].astext().startswith("Short summary. Range 2")
+    assert "fine print." in result.children[0].astext()
+    assert result.children[2].astext().strip() == (
+        "After the heading, search term and user.home."
+    )
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "conf.py").write_text(
+        "extensions = ['sphinx_java_autodoc']\n"
+        f"java_sources = [{str(tmp_path / 'src')!r}]\n"
+    )
+    (docs / "index.rst").write_text("Html\n====\n\n.. java:autoclass:: p.Html\n")
+    build(docs, tmp_path / "html")
+    build(docs, tmp_path / "text", "-b", "text")
+    assert "<sup>31</sup>" in (tmp_path / "html/index.html").read_text()
 
 
 def test_application_code_never_executes(tmp_path):
@@ -873,6 +946,33 @@ def test_line_breaks_preserve_inline_formatting_and_preformatted_text():
     assert isinstance(block.children[1][0], nodes.emphasis)
     assert isinstance(block.children[2][0], nodes.emphasis)
     assert next(result.findall(nodes.literal_block)).astext() == "Code\ncontinued"
+
+
+def test_preformatted_text_without_lang_is_highlighted_leniently(tmp_path):
+    source = tmp_path / "src/p/Pre.java"
+    source.parent.mkdir(parents=True)
+    source.write_text(
+        "package p;\n/** Results.\n * <pre>a # b</pre>\n"
+        ' * <pre lang="text">c</pre>\n */\npublic class Pre {}\n'
+    )
+    root = extract([tmp_path / "src"], [], tmp_path / "cache").root
+    from docutils import nodes
+
+    from sphinx_java_autodoc.render import comment
+
+    body = element(root, "p.Pre").find("doc/part[@kind='body']")
+    lenient, strict = nodes.container("", *comment(body, None)).findall(
+        nodes.literal_block
+    )
+    assert (lenient["language"], lenient.get("force")) == ("java", True)
+    assert (strict["language"], strict.get("force")) == ("text", None)
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "conf.py").write_text(
+        f"extensions = ['sphinx_java_autodoc']\njava_sources = [{str(tmp_path / 'src')!r}]\n"
+    )
+    (docs / "index.rst").write_text("Pre\n===\n\n.. java:autoclass:: p.Pre\n")
+    build(docs, tmp_path / "html")
 
 
 def test_paragraph_boundaries_and_spaces_between_tokens():

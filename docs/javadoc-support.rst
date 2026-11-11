@@ -13,17 +13,33 @@ Tags and HTML
 - JDK notes: ``@apiNote``, ``@implSpec`` and ``@implNote``, with the standard
   doclet's headings. They are not inherited.
 - Inline tags: ``code``, ``literal``, ``link``, ``linkplain``, ``value``,
-  ``inheritDoc``, ``return`` and plain inline ``snippet``.
-- HTML: paragraphs, nested lists, tables, ``<pre>``, emphasis, strong text,
-  ``<br>`` and absolute HTTP(S) or mailto links.
+  ``inheritDoc``, ``return`` and plain inline ``snippet``. ``{@summary}`` shows its
+  text, ``{@index}`` its term and ``{@systemProperty}`` the property name as code,
+  as in the standard doclet; there is no search index entry.
+- HTML: paragraphs, nested lists, definition lists (``<dl>``, ``<dt>``, ``<dd>``),
+  tables, ``<pre>``, headings ``<h1>`` to ``<h6>`` as rubrics, ``<br>`` and absolute
+  HTTP(S) or mailto links.
+- Inline HTML: emphasis (``<i>``, ``<em>``, ``<var>``, ``<cite>``, ``<dfn>``), strong
+  text (``<b>``, ``<strong>``), code (``<code>``, ``<tt>``, ``<kbd>``, ``<samp>``),
+  ``<sup>``, ``<sub>`` and ``<small>``, which shows as plain text.
+
+``<pre>`` is highlighted as Java where its text is Java, and shown without a warning
+where it is not, such as a table of results. With a ``lang`` attribute, as in
+snippets, Sphinx warns when the text does not match the language.
 
 ``@author``, ``@version`` and the ``@serial`` tags are omitted silently, as in the
 standard doclet's default output. Other custom tags warn.
 
+Fields follow the order of the JDK's own documentation, whatever the order of the
+tags: Specified by and Overrides, the notes, then Type parameters, Parameters,
+Returns, Throws, Since and See also.
+
 Text reads as in the standard doclet. A link without a label shows
 ``Map.Entry``, ``String.format(String, Object...)``, or ``of(L, R)`` for a member of
-the same type. Sphinx's smart quotes are off, so quotes and ``...`` stay as written.
-``@throws`` names link to the exception type.
+the same type. A link to a type parameter or a module, such as ``{@link T}`` or
+``{@link java.base/}``, shows its name or label as code without linking. Sphinx's
+smart quotes are off, so quotes and ``...`` stay as written. ``@throws`` names link
+to the exception type.
 
 Constant values
 ---------------
