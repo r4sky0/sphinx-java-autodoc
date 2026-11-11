@@ -133,6 +133,42 @@ public class Links {
     assert rendered in standard.blocks
 
 
+def test_type_parameter_and_module_links_are_code_text(tmp_path):
+    source = tmp_path / "p/A.java"
+    source.parent.mkdir()
+    source.write_text("""package p;
+/**
+ * Class {@link C}, labelled {@link C the type}, module {@link java.base/} and
+ * {@linkplain C plain}.
+ * @param <C> c
+ */
+public class A<C> {
+    /**
+     * Method {@link T} and {@link T label}.
+     * @param <T> t
+     */
+    public <T> void m() {}
+}
+""")
+    root = extract([tmp_path], [], tmp_path / "cache").root
+    assert not root.findall("diagnostic")
+    assert not root.findall(".//doc/part/link")
+    output = tmp_path / "standard"
+    run(["javadoc", "-quiet", "-Xdoclint:none", "-d", str(output), str(source)])
+    standard = Blocks()
+    standard.feed((output / "p/A.html").read_text())
+    for symbol, expected in (
+        ("p.A", "Class C, labelled the type, module java.base and plain."),
+        ("p.A#m()", "Method T and label."),
+    ):
+        body = element(root, symbol).find("doc/part[@kind='body']")
+        content = nodes.container("", *comment(body, None))
+        assert content.astext() == expected
+        assert expected in standard.blocks
+    codes = [n.astext() for n in content.findall(nodes.literal)]
+    assert codes == ["T", "label"]
+
+
 def test_override_notes_and_summaries_match_standard_doclet(tmp_path):
     (tmp_path / "p").mkdir()
     (tmp_path / "p/A.java").write_text("""package p;

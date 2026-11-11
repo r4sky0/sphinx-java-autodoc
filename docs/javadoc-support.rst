@@ -22,8 +22,10 @@ standard doclet's default output. Other custom tags warn.
 
 Text reads as in the standard doclet. A link without a label shows
 ``Map.Entry``, ``String.format(String, Object...)``, or ``of(L, R)`` for a member of
-the same type. Sphinx's smart quotes are off, so quotes and ``...`` stay as written.
-``@throws`` names link to the exception type.
+the same type. A link to a type parameter or a module, such as ``{@link T}`` or
+``{@link java.base/}``, shows its name or label as code without linking. Sphinx's
+smart quotes are off, so quotes and ``...`` stay as written. ``@throws`` names link
+to the exception type.
 
 Constant values
 ---------------

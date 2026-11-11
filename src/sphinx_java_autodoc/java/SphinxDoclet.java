@@ -540,6 +540,15 @@ public final class SphinxDoclet implements Doclet {
   }
 
   private Xml declaration(Xml parent, String tag, Element e) {
+    try {
+      return declarationNode(parent, tag, e);
+    } catch (RuntimeException ex) {
+      // Names the declaration in "Sphinx extraction failed", so its comment can be found.
+      throw new IllegalStateException(id(e) + ": " + ex, ex);
+    }
+  }
+
+  private Xml declarationNode(Xml parent, String tag, Element e) {
     var node =
         parent
             .add(tag)
@@ -1023,8 +1032,27 @@ public final class SphinxDoclet implements Doclet {
       parent.addText("literal", "[missing link target]");
       return;
     }
-    var link = parent.add("link").set("plain", Boolean.toString(plain));
     var target = resolve(owner, ref);
+    // Type parameters and modules have no page in the model; they stay code text.
+    if (target instanceof TypeParameterElement || target instanceof ModuleElement) {
+      if (!plain) {
+        parent.add("start").set("name", "code").set("closed", "false");
+      }
+      if (label.isEmpty()) {
+        String name =
+            target instanceof ModuleElement module
+                ? module.getQualifiedName().toString()
+                : target.getSimpleName().toString();
+        parent.addText("text", name);
+      } else {
+        emit(parent, owner, "label", label, new HashSet<>());
+      }
+      if (!plain) {
+        parent.add("end").set("name", "code");
+      }
+      return;
+    }
+    var link = parent.add("link").set("plain", Boolean.toString(plain));
     link.set("target", target == null ? ref.toString() : id(target));
     if (target == null) {
       warn(
