@@ -10,7 +10,7 @@ from test_integration import element
 from sphinx_java_autodoc.domain import summary_label, summary_type
 from sphinx_java_autodoc.extractor import extract, run
 from sphinx_java_autodoc.model import use_model
-from sphinx_java_autodoc.render import FIELD_TITLES, comment
+from sphinx_java_autodoc.render import FIELD_TITLES, comment, documentation
 
 
 class Blocks(HTMLParser):
@@ -133,6 +133,42 @@ public class Links {
     assert rendered in standard.blocks
 
 
+def test_type_parameter_and_module_links_are_code_text(tmp_path):
+    source = tmp_path / "p/A.java"
+    source.parent.mkdir()
+    source.write_text("""package p;
+/**
+ * Class {@link C}, labelled {@link C the type}, module {@link java.base/} and
+ * {@linkplain C plain}.
+ * @param <C> c
+ */
+public class A<C> {
+    /**
+     * Method {@link T} and {@link T label}.
+     * @param <T> t
+     */
+    public <T> void m() {}
+}
+""")
+    root = extract([tmp_path], [], tmp_path / "cache").root
+    assert not root.findall("diagnostic")
+    assert not root.findall(".//doc/part/link")
+    output = tmp_path / "standard"
+    run(["javadoc", "-quiet", "-Xdoclint:none", "-d", str(output), str(source)])
+    standard = Blocks()
+    standard.feed((output / "p/A.html").read_text())
+    for symbol, expected in (
+        ("p.A", "Class C, labelled the type, module java.base and plain."),
+        ("p.A#m()", "Method T and label."),
+    ):
+        body = element(root, symbol).find("doc/part[@kind='body']")
+        content = nodes.container("", *comment(body, None))
+        assert content.astext() == expected
+        assert expected in standard.blocks
+    codes = [n.astext() for n in content.findall(nodes.literal)]
+    assert codes == ["T", "label"]
+
+
 def test_override_notes_and_summaries_match_standard_doclet(tmp_path):
     (tmp_path / "p").mkdir()
     (tmp_path / "p/A.java").write_text("""package p;
@@ -233,3 +269,70 @@ public class B<T> extends A<T> {
                 )
                 for p in parts
             ] == expected, member.get("id")
+
+
+def test_fields_follow_standard_doclet_order(tmp_path):
+    (tmp_path / "p").mkdir()
+    (tmp_path / "p/A.java").write_text("""package p;
+/** A. */
+public abstract class A {
+    /**
+     * Body.
+     * @see Object
+     * @since 1.0
+     * @throws IllegalStateException bad
+     * @return value
+     * @param s text
+     * @implNote note
+     * @param <T> type
+     * @apiNote api
+     * @implSpec spec
+     */
+    public <T> int m(String s) { return 0; }
+}
+""")
+    (tmp_path / "p/B.java").write_text("""package p;
+/** B. */
+public class B extends A {
+    /**
+     * Overriding.
+     * @throws IllegalStateException again
+     * @since 2.0
+     * @apiNote child note
+     * @see String
+     */
+    @Override public <T> int m(String s) { return 1; }
+}
+""")
+    root = extract([tmp_path], [], tmp_path / "cache").root
+    output = tmp_path / "standard"
+    # The JDK's own documentation build orders its notes before the standard tags.
+    run(
+        [
+            "javadoc",
+            "-J-Duser.language=en",
+            "-J-Duser.country=US",
+            "-locale",
+            "en_US",
+            "-quiet",
+            "-Xdoclint:none",
+            *("-tag", "apiNote:a:API Note:"),
+            *("-tag", "implSpec:a:Implementation Requirements:"),
+            *("-tag", "implNote:a:Implementation Note:"),
+            *("-tag", "param", "-tag", "return", "-tag", "throws"),
+            *("-tag", "since", "-tag", "see"),
+            "-d",
+            str(output),
+            str(tmp_path / "p/A.java"),
+            str(tmp_path / "p/B.java"),
+        ]
+    )
+    for owner in ("A", "B"):
+        html = (output / f"p/{owner}.html").read_text()
+        section = html[html.index('<section class="detail" id="m(') :]
+        section = section[: section.index("</section>")]
+        standard = [t.lower() for t in re.findall(r"<dt>([^<]*):</dt>", section)]
+        member = element(root, f"p.{owner}#m(java.lang.String)")
+        content = nodes.container("", *documentation(member, None))
+        rendered = [n.astext().lower() for n in content.findall(nodes.field_name)]
+        assert rendered == standard, owner

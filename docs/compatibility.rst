@@ -25,8 +25,9 @@ Requirements and tested versions
      - 3.12+
      - 3.12, 3.13 and 3.14
    * - Sphinx
-     - 8.2.x and 9.1.x
+     - 8.2.x, 9.0.x and 9.1.x
      - 9.1.0, with the Docutils version it installs (0.22.4); the test suite on 8.2.3
+       and on 9.0.4 with Docutils 0.22.4
    * - Operating system
      - Platform-neutral
      - Linux, macOS and Windows in GitHub Actions

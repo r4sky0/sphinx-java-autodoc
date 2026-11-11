@@ -30,10 +30,16 @@ snippets, Sphinx warns when the text does not match the language.
 ``@author``, ``@version`` and the ``@serial`` tags are omitted silently, as in the
 standard doclet's default output. Other custom tags warn.
 
+Fields follow the order of the JDK's own documentation, whatever the order of the
+tags: Specified by and Overrides, the notes, then Type parameters, Parameters,
+Returns, Throws, Since and See also.
+
 Text reads as in the standard doclet. A link without a label shows
 ``Map.Entry``, ``String.format(String, Object...)``, or ``of(L, R)`` for a member of
-the same type. Sphinx's smart quotes are off, so quotes and ``...`` stay as written.
-``@throws`` names link to the exception type.
+the same type. A link to a type parameter or a module, such as ``{@link T}`` or
+``{@link java.base/}``, shows its name or label as code without linking. Sphinx's
+smart quotes are off, so quotes and ``...`` stay as written. ``@throws`` names link
+to the exception type.
 
 Constant values
 ---------------

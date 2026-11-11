@@ -128,7 +128,7 @@ def test_semantic_extraction(model):
     )
     assert inherited.find("doc/part/link").get("target") == "demo.Widget#convert(int)"
     twice = element(root, "demo.Transformer#twice(java.lang.Object)")
-    assert signature(twice).startswith("public default T twice")
+    assert signature(twice).startswith("default T twice")
     assert [p.get("kind") for p in twice.findall("doc/part")] == [
         "body",
         "apiNote",
@@ -391,6 +391,13 @@ public class Bad {
     assert output.read_text() == "previous good model"
 
 
+def test_jvm_option_notices_are_not_diagnostics(tmp_path, monkeypatch):
+    source = tmp_path / "Clean.java"
+    source.write_text("/** Clean. */\npublic class Clean {}\n")
+    monkeypatch.setenv("JAVA_TOOL_OPTIONS", "-Dsphinx.test=1")
+    assert not extract([source], [], tmp_path / "cache").root.findall("diagnostic")
+
+
 def test_markdown_diagnostic(tmp_path):
     source = tmp_path / "Markdown.java"
     source.write_text("/// A **Markdown** comment.\npublic class Markdown {}\n")
@@ -459,6 +466,10 @@ def test_read_model_and_safe_generation(model, tmp_path):
 def test_source_release_levels(tmp_path, release):
     root = extract([SOURCES], [], tmp_path / "cache", release=release).root
     assert element(root, "demo.Point").get("kind") == "record"
+
+
+def test_release_may_be_an_integer(tmp_path):
+    build(project(tmp_path, extra="java_release = 17\n"), tmp_path / "out")
 
 
 def test_text_builder(site, tmp_path):

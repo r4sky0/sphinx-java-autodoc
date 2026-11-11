@@ -145,7 +145,8 @@ def comment(part: ET.Element, location, quiet: bool = False) -> list[nodes.Node]
 
     def table_finish(table):
         """Lays out collected rows on a grid as a docutils table with a header."""
-        rows = [child for child in table.children if isinstance(child, nodes.row)]
+        # A row without cells, such as <tr></tr>, has no place on the grid.
+        rows = [c for c in table.children if isinstance(c, nodes.row) and c.children]
         if not rows:
             warn("Javadoc <table> has no rows; use <tr> with <td> or <th> cells.")
             table.parent.remove(table)
@@ -416,7 +417,11 @@ def summary(element: ET.Element, location) -> list[nodes.Node]:
     """Returns the first sentence of the description as inline nodes."""
     body = element.find("doc/part[@kind='body']")
     content = comment(body, location, quiet=True) if body is not None else []
-    if not content or not isinstance(content[0], nodes.paragraph):
+    first = content[0] if content else None
+    if isinstance(first, nodes.line_block):
+        # <br> turns the first paragraph into lines; the summary comes from the first.
+        first = first[0]
+    if not isinstance(first, (nodes.paragraph, nodes.line)):
         return []
     done = False
 
@@ -435,7 +440,7 @@ def summary(element: ET.Element, location) -> list[nodes.Node]:
                 break
         return copy
 
-    sentence = truncate(content[0])
+    sentence = truncate(first)
     # The full description reports unresolved links; the summary repeats them quietly.
     for reference in sentence.findall(addnodes.pending_xref):
         reference["java:quiet"] = True
@@ -447,19 +452,22 @@ def quiet_reference(app, env, node, contnode):
     return contnode if node.get("java:quiet") else None
 
 
+# Fields in the standard doclet's order, whatever the order of tags in the comment.
+# The notes come first, as in the JDK's documentation, which lists their -tag options
+# before the standard tags.
 FIELD_TITLES = {
     "specifiedBy": "Specified by",
     "overrides": "Overrides",
-    "param": "Parameters",
-    "typeparam": "Type parameters",
-    "return": "Returns",
-    "throws": "Throws",
-    "see": "See also",
-    "since": "Since",
     # The standard doclet's headings for the JDK's custom note tags.
     "apiNote": "API Note",
     "implSpec": "Implementation Requirements",
     "implNote": "Implementation Note",
+    "typeparam": "Type parameters",
+    "param": "Parameters",
+    "return": "Returns",
+    "throws": "Throws",
+    "since": "Since",
+    "see": "See also",
 }
 
 
@@ -512,8 +520,10 @@ def documentation(element: ET.Element, location) -> list[nodes.Node]:
                 label = reference(part, [label])
                 label["refwarn"] = False
             fields_by_kind.setdefault(kind, []).append((label, content))
-    for kind, items in fields_by_kind.items():
-        fields += field(kind, items)
+    # Kinds unknown to this renderer follow, in model order.
+    for kind in [*FIELD_TITLES, *fields_by_kind]:
+        if kind in fields_by_kind:
+            fields += field(kind, fields_by_kind.pop(kind))
     if notice is not None:
         if notice.children and isinstance(notice[0], nodes.paragraph):
             label = "Deprecated: "
