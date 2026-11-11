@@ -41,9 +41,24 @@ Unsupported tags, HTML, ``///`` Markdown comments and advanced snippets warn wit
 the symbol; see :doc:`javadoc-support`. To inherit a dependency's Javadoc, add its
 sources to ``java_sourcepath``.
 
-Warnings use the ``java.extract``, ``java.html``, ``java.type``, ``java.member``
-and related categories. Suppressing a warning does not add the missing content.
-Outside Sphinx, ``--warnings-as-errors`` makes extraction diagnostics fail.
+Warnings use the ``java.extract``, ``java.inherit``, ``java.html``, ``java.type``,
+``java.member`` and related categories. Suppressing a warning does not add the
+missing content. Outside Sphinx, ``--warnings-as-errors`` makes all extraction
+diagnostics fail, whatever their category.
+
+An overriding method without its own text for a part warns "Cannot inherit ..."
+as ``java.inherit`` when no ancestor documents that part. This is common for
+overrides of JDK methods such as ``toString``, ``equals`` and ``hashCode``: the
+JDK's sources ship as modules with ``module-info.java``, which ``java_sourcepath``
+rejects, so there is nothing to inherit from. Document the part, or silence only these
+warnings while keeping the others:
+
+.. code-block:: python
+
+   suppress_warnings = ["java.inherit"]
+
+An explicit ``{@inheritDoc}`` that cannot be resolved stays ``java.extract``,
+because it leaves an ``[unresolved inheritDoc]`` marker in the output.
 
 The extension refuses to overwrite a generated page
 ---------------------------------------------------

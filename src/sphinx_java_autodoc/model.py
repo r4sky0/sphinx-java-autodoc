@@ -117,6 +117,9 @@ def read_model(path: Path) -> ET.Element:
                     )
                 if not valid:
                     raise ValueError(f"invalid member identity or kind for {symbol!r}")
+        for diagnostic in root.findall("diagnostic"):
+            if diagnostic.get("kind", "extract") not in {"extract", "inherit"}:
+                raise ValueError("invalid diagnostic kind")
         tokens = {"k", "kt", "t", "q", "n", "tv", "pname", "v", "r"}
         for sig in root.findall("type/sig") + root.findall("type/member/sig"):
             for token in sig.iter():
@@ -144,7 +147,12 @@ def use_model(root: ET.Element) -> None:
     PACKAGES.clear()
     PACKAGES.update((p.get("name"), p) for p in root.findall("package"))
     REFERENCES.clear()
-    REFERENCES.update((n.get("target"), dict(n.attrib)) for n in root.iter("link"))
+    # Every place the compiler recorded a location: comment links, documented throws
+    # and signature types. An unresolved link has none and never replaces one.
+    for node in [*root.iter("link"), *root.iter("part"), *root.iter("r")]:
+        target = node.get("target")
+        if target and (node.get("path") or target not in REFERENCES):
+            REFERENCES[target] = dict(node.attrib)
 
 
 def visible(element: ET.Element, visibility: str) -> bool:

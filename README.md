@@ -21,8 +21,8 @@ for the output.
 
 ## Requirements
 
-Python 3.12+, Sphinx 8.2.x or 9.1.x, and **JDK 25 for extraction**. Your library can keep
-targeting Java 17 or 21. See
+Python 3.12+, Sphinx 8.2.x, 9.0.x or 9.1.x, and **JDK 25 for extraction**. Your library
+can keep targeting Java 17 or 21. See
 [compatibility and limits](https://r4sky0.github.io/sphinx-java-autodoc/compatibility.html).
 
 ## Quick start

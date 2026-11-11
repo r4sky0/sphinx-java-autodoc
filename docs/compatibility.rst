@@ -25,8 +25,9 @@ Requirements and tested versions
      - 3.12+
      - 3.12, 3.13 and 3.14
    * - Sphinx
-     - 8.2.x and 9.1.x
+     - 8.2.x, 9.0.x and 9.1.x
      - 9.1.0, with the Docutils version it installs (0.22.4); the test suite on 8.2.3
+       and on 9.0.4 with Docutils 0.22.4
    * - Operating system
      - Platform-neutral
      - Linux, macOS and Windows in GitHub Actions
@@ -57,8 +58,9 @@ Known limits
 * Traditional Javadoc comments and plain inline ``{@snippet}`` bodies are
   supported; see :doc:`javadoc-support`. Markdown comments (``///``), external or
   hybrid snippets, snippet regions, IDs and markup, and unsupported tags warn. The
-  HTML subset excludes definition lists, headings, images, presentational attributes,
-  ``<th>`` styling outside table headers, and local documentation assets.
+  HTML subset excludes images, presentational attributes, ``<th>`` styling outside
+  table headers, and local documentation assets. Headings become rubrics, outside
+  the page's table of contents.
 * Only declared members are shown. Non-overridden inherited methods stay on their
   ancestor's page. Compiler-generated record and enum methods are listed, but the
   standard doclet's generated prose for them is not synthesized.

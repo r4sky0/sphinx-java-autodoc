@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import re
+import secrets
 import shutil
 import subprocess
 import tempfile
@@ -19,6 +20,8 @@ from .model import Model, read_model
 VERSION = "0.6.0"  # x-release-please-version
 DOCLET = Path(__file__).parent / "java" / "SphinxDoclet.java"
 PACKAGE = re.compile(r"[^\W\d]\w*(?:\.[^\W\d]\w*)*")
+# The JVM announces options from variables such as JAVA_TOOL_OPTIONS on stderr.
+JVM_NOTICE = re.compile(r"(NOTE: )?Picked up \w+:")
 
 
 def run(arguments: list[str], *, cwd: Path | None = None) -> str:
@@ -50,15 +53,20 @@ def atomic_write(path: Path, data: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists() and path.read_bytes() == data:
         return
-    with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as stream:
-        temporary = Path(stream.name)
-        try:
+    temporary = path.with_name(f".{path.name}.{secrets.token_hex(8)}.tmp")
+    # O_EXCL refuses an existing file or planted symlink; the umask applies to 0o666.
+    # Opened before the try, so the cleanup never removes a file it did not create.
+    fd = os.open(
+        temporary,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0),
+        0o666,
+    )
+    try:
+        with os.fdopen(fd, "wb") as stream:
             stream.write(data)
-            stream.flush()
-            stream.close()
-            os.replace(temporary, path)
-        finally:
-            temporary.unlink(missing_ok=True)
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def extract(
@@ -243,7 +251,12 @@ def extract(
             ),
             encoding="utf-8",
         )
-        diagnostics = run([tools["javadoc"], "@" + str(argfile)], cwd=work)
+        printed = run([tools["javadoc"], "@" + str(argfile)], cwd=work)
+        diagnostics = "".join(
+            line
+            for line in printed.splitlines(keepends=True)
+            if not JVM_NOTICE.match(line)
+        )
         root = read_model(output)
         root.set("extractor", VERSION)
         if diagnostics.strip():
