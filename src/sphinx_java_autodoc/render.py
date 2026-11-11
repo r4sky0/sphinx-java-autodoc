@@ -22,9 +22,18 @@ ATTRIBUTES = {
 }
 # Unsupported block elements still end the current paragraph.
 BLOCK_LEVEL = {
-    *(f"h{level}" for level in range(1, 7)),
-    *("address", "article", "aside", "center", "dd", "div", "dl", "dt", "figcaption"),
-    *("figure", "footer", "header", "hr", "main", "nav", "section"),
+    *("address", "article", "aside", "center", "div", "figcaption", "figure"),
+    *("footer", "header", "hr", "main", "nav", "section"),
+}
+HEADINGS = {f"h{level}" for level in range(1, 7)}
+# Inline elements; <a> and <br> are handled separately.
+INLINE = {
+    **dict.fromkeys(("b", "strong"), nodes.strong),
+    **dict.fromkeys(("i", "em", "var", "cite", "dfn"), nodes.emphasis),
+    **dict.fromkeys(("code", "tt", "kbd", "samp"), nodes.literal),
+    "sup": nodes.superscript,
+    "sub": nodes.subscript,
+    "small": nodes.inline,
 }
 # HTML limits for cell spans.
 SPAN_LIMITS = {"colspan": 1000, "rowspan": 65534}
@@ -51,8 +60,9 @@ def comment(part: ET.Element, location, quiet: bool = False) -> list[nodes.Node]
     """Renders comment tokens; ``quiet`` skips warnings for repeated renderings."""
     root = nodes.container()
     stack: list[tuple[str, nodes.Element]] = [("root", root)]
-    block_tags = {"p", "ul", "ol", "li", "pre", "blockquote"}
-    supported = block_tags | TABLE_TAGS | {"code", "b", "strong", "i", "em", "a", "br"}
+    block_tags = {"p", "ul", "ol", "li", "pre", "blockquote", "dl", "dt", "dd"}
+    block_tags |= HEADINGS
+    supported = block_tags | TABLE_TAGS | INLINE.keys() | {"a", "br"}
     head_rows: set[int] = set()
     header_cells: set[int] = set()
     # Paragraphs from <p> or ended by a block element take no further inline content.
@@ -199,7 +209,14 @@ def comment(part: ET.Element, location, quiet: bool = False) -> list[nodes.Node]
                 warn("Javadoc table content must be inside <td> or <th>.")
             return
         if isinstance(
-            current, (nodes.container, nodes.list_item, nodes.block_quote, nodes.entry)
+            current,
+            (
+                nodes.container,
+                nodes.list_item,
+                nodes.block_quote,
+                nodes.entry,
+                nodes.definition,
+            ),
         ):
             last = current.children[-1] if current.children else None
             if not isinstance(last, nodes.paragraph) or id(last) in sealed:
@@ -211,6 +228,9 @@ def comment(part: ET.Element, location, quiet: bool = False) -> list[nodes.Node]
         elif isinstance(current, (nodes.bullet_list, nodes.enumerated_list)):
             if node.astext().strip():
                 warn("Javadoc list content must be inside <li>.")
+        elif isinstance(current, nodes.definition_list):
+            if node.astext().strip():
+                warn("Javadoc definition list content must be inside <dt> or <dd>.")
         else:
             current += node
 
@@ -281,6 +301,11 @@ def comment(part: ET.Element, location, quiet: bool = False) -> list[nodes.Node]
                             if open_tag == "li":
                                 close("li")
                                 break
+                    # <dt> and <dd> end the previous term or definition.
+                    if name in {"dt", "dd"} and unwind({"dl"}) is None:
+                        warn(f"Javadoc <{name}> needs a surrounding <dl>.")
+                        continue
+                    parent = stack[-1][1]
                     if name == "p":
                         node = nodes.paragraph()
                         sealed.add(id(node))
@@ -294,21 +319,33 @@ def comment(part: ET.Element, location, quiet: bool = False) -> list[nodes.Node]
                         node = nodes.literal_block(
                             "", "", language=attrs.get("lang", "java")
                         )
+                        if "lang" not in attrs:
+                            # Javadoc never highlights <pre>, which often holds no Java.
+                            node["force"] = True
+                    elif name in HEADINGS:
+                        # Like Sphinx's rubric directive: a heading outside the TOC.
+                        node = nodes.rubric()
+                    elif name == "dl":
+                        node = nodes.definition_list()
+                    elif name == "dt":
+                        parent += nodes.definition_list_item()
+                        parent, node = parent[-1], nodes.term()
+                    elif name == "dd":
+                        last = parent[-1] if parent.children else None
+                        if last is None or isinstance(last[-1], nodes.definition):
+                            parent += nodes.definition_list_item("", nodes.term())
+                        parent, node = parent[-1], nodes.definition()
                     else:
                         node = nodes.block_quote()
                     if name == "li" and not isinstance(
-                        stack[-1][1], (nodes.bullet_list, nodes.enumerated_list)
+                        parent, (nodes.bullet_list, nodes.enumerated_list)
                     ):
                         warn("Javadoc <li> needs a surrounding <ul> or <ol>.")
                         continue
-                    stack[-1][1].append(node)
+                    parent.append(node)
                 else:
-                    if name in {"b", "strong"}:
-                        node = nodes.strong()
-                    elif name in {"i", "em"}:
-                        node = nodes.emphasis()
-                    elif name == "code":
-                        node = nodes.literal()
+                    if name in INLINE:
+                        node = INLINE[name]()
                     else:
                         href = attrs.get("href", "")
                         if urlsplit(href).scheme not in {"https", "http", "mailto"}:
