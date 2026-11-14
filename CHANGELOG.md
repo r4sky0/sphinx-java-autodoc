@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.7.0](https://github.com/r4sky0/sphinx-java-autodoc/compare/v0.6.0...v0.7.0) (2026-11-11)
+
+
+### Features
+
+* render more Javadoc HTML and inline tags natively, and highlight &lt;pre&gt; leniently ([#72](https://github.com/r4sky0/sphinx-java-autodoc/issues/72)) ([6b851cb](https://github.com/r4sky0/sphinx-java-autodoc/commit/6b851cb73e7d3be85dd8948a9d71db7362fe8788))
+* report implicit inheritance failures as java.inherit and warn about unresolved [@throws](https://github.com/throws) ([#73](https://github.com/r4sky0/sphinx-java-autodoc/issues/73)) ([a940118](https://github.com/r4sky0/sphinx-java-autodoc/commit/a940118f9ba524211dfd9a874f2e5b1caa628913))
+
+
+### Bug Fixes
+
+* publish files with the umask's permissions, ignore JVM option notices and accept an integer java_release ([#70](https://github.com/r4sky0/sphinx-java-autodoc/issues/70)) ([99b9a76](https://github.com/r4sky0/sphinx-java-autodoc/commit/99b9a763b9822a1b87ed2655f9d3de3d4fa2ad69))
+* resolve summary links through intersphinx, nested external types, signature-only types and spaced member spellings ([#74](https://github.com/r4sky0/sphinx-java-autodoc/issues/74)) ([b75a4ce](https://github.com/r4sky0/sphinx-java-autodoc/commit/b75a4ce75ad908cc44186ee85a6a009896cfa8f0))
+* show modifiers, field order and &lt;br&gt; summaries as the standard doclet does ([#71](https://github.com/r4sky0/sphinx-java-autodoc/issues/71)) ([cd7cd85](https://github.com/r4sky0/sphinx-java-autodoc/commit/cd7cd8558298bcfba436c7f89b65c46c827ad32f))
+* survive links to type parameters and modules, and table rows without cells ([#69](https://github.com/r4sky0/sphinx-java-autodoc/issues/69)) ([b4127fc](https://github.com/r4sky0/sphinx-java-autodoc/commit/b4127fcbd7945152c5517400c606468d9befb4b2))
+
 ## [0.6.0](https://github.com/r4sky0/sphinx-java-autodoc/compare/v0.5.0...v0.6.0) (2026-10-15)
 
 
